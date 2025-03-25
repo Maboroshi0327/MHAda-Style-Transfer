@@ -11,7 +11,7 @@ RUN apt update && apt upgrade -y && apt install -y \
     libxext6 \
     libxrender-dev \
     # Create directories
-    && mkdir -p ~/SaVSTr \
+    && mkdir -p ~/project \
     && mkdir -p ~/datasets \
     # Install Miniconda
     && mkdir -p ~/miniconda3 \
@@ -23,4 +23,4 @@ RUN apt update && apt upgrade -y && apt install -y \
     # Install PyTorch
     && conda install -y python=3.12 \
     && pip install torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cu124 \
-    && pip install scipy==1.15.1 opencv-python==4.11.0.86 
+    && pip install scipy==1.15.1 opencv-contrib-python==4.11.0.86

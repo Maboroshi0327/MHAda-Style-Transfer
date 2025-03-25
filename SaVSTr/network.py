@@ -1,88 +1,196 @@
-from typing import Optional
-
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+from torch import linalg as LA
+from torch.nn import functional as F
+
+import numpy as np
+
+from vit import ViT
 
 
-class LinearProjection(nn.Module):
-    def __init__(self, img_size: tuple = (360, 640), patch_size: tuple = (8, 8), in_chans=3, embed_dim=512):
+class Conv(nn.Module):
+    def __init__(self, in_channels: int, out_channels: int, kernel_size: int, stride: int):
         super().__init__()
-        num_patches = (img_size[1] // patch_size[1]) * (img_size[0] // patch_size[0])
-        self.img_size = img_size
-        self.patch_size = patch_size
-        self.num_patches = num_patches
-
-        self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size)
+        pad = int(np.floor(kernel_size / 2))
+        self.pad = torch.nn.ReflectionPad2d(pad)
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride)
 
     def forward(self, x):
-        x = self.proj(x)
+        x = self.pad(x)
+        x = self.conv(x)
         return x
 
 
-class CAPE(nn.Module):
-    def __init__(self, in_chans: int = 512, out_chans: int = 512):
+class ConvReLU(nn.Module):
+    def __init__(self, in_channels: int, out_channels: int, kernel_size: int, stride: int):
         super().__init__()
-        self.avgpool = nn.AdaptiveAvgPool2d(18)
-        self.pos = nn.Conv2d(in_chans, out_chans, (1, 1))
-
-    def forward(self, x):
-        B, C, H, W = x.shape
-        x = self.avgpool(x)
-        x = self.pos(x)
-        x = F.interpolate(x, mode="bilinear", size=(H, W))
-        return x
-
-
-class TransformerEncoder(nn.Module):
-    def __init__(self, d_model=512, nhead=8, dim_feedforward=2048, dropout=0.1):
-        super().__init__()
-        self.MultiheadAttention = nn.MultiheadAttention(d_model, nhead, dropout=dropout, batch_first=True)
-        self.dropout1 = nn.Dropout(dropout)
-        self.norm1 = nn.LayerNorm(d_model)
-
-        self.linear1 = nn.Linear(d_model, dim_feedforward)
-        self.dropout2_1 = nn.Dropout(dropout)
-        self.linear2 = nn.Linear(dim_feedforward, d_model)
-        self.dropout2_2 = nn.Dropout(dropout)
-        self.norm2 = nn.LayerNorm(d_model)
-
+        self.conv = Conv(in_channels, out_channels, kernel_size, stride)
         self.relu = nn.ReLU()
 
-    def positional_encoding(self, tensor: torch.Tensor, pos: Optional[torch.Tensor]):
-        if pos is None:
-            return tensor
-        return tensor + pos
-
-    def forward(self, x: torch.Tensor, pos: Optional[torch.Tensor] = None):
-        x = self.positional_encoding(x, pos)
-        q = k = v = x = x.flatten(2).permute(0, 2, 1)
-
-        y, _ = self.MultiheadAttention(q, k, v)
-        y = self.dropout1(y)
-        x = x + y
-        x = self.norm1(x)
-
-        y = self.linear1(x)
-        y = self.relu(y)
-        y = self.dropout2_1(y)
-        y = self.linear2(y)
-        y = self.dropout2_2(y)
-        x = x + y
-        x = self.norm2(x)
+    def forward(self, x):
+        x = self.conv(x)
+        x = self.relu(x)
         return x
+
+
+class ConvTanh(nn.Module):
+    def __init__(self, in_channels: int, out_channels: int, kernel_size: int, stride: int):
+        super().__init__()
+        self.conv = Conv(in_channels, out_channels, kernel_size, stride)
+        self.tanh = nn.Tanh()
+
+    def forward(self, x):
+        x = self.conv(x)
+        x = self.tanh(x)
+        x = (x + 1) / 2 * 255
+        return x
+
+
+class ConvReluInterpolate(nn.Module):
+    def __init__(self, in_channels: int, out_channels: int, kernel_size: int, stride: int, scale_factor: float):
+        super().__init__()
+        self.conv = Conv(in_channels, out_channels, kernel_size, stride)
+        self.relu = nn.ReLU()
+        self.scale_factor = scale_factor
+
+    def forward(self, x):
+        x = self.conv(x)
+        x = self.relu(x)
+        x = F.interpolate(x, scale_factor=self.scale_factor, mode="bilinear", align_corners=False)
+        return x
+
+
+class Decoder(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv1 = ConvReluInterpolate(512, 256, 3, 1, 2)
+
+        self.conv2 = nn.Sequential(
+            ConvReLU(256, 256, 3, 1),
+            ConvReLU(256, 256, 3, 1),
+            ConvReLU(256, 256, 3, 1),
+            ConvReluInterpolate(256, 128, 3, 1, 2),
+        )
+
+        self.conv3 = nn.Sequential(
+            ConvReLU(128, 128, 3, 1),
+            ConvReluInterpolate(128, 64, 3, 1, 2),
+        )
+
+        self.conv4 = nn.Sequential(
+            ConvReLU(64, 64, 3, 1),
+            ConvReLU(64, 3, 3, 1),
+        )
+
+    def forward(self, fcs):
+        fcs = self.conv1(fcs)
+        fcs = self.conv2(fcs)
+        fcs = self.conv3(fcs)
+        cs = self.conv4(fcs)
+        return cs
+
+
+class Softmax(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.softmax = nn.Softmax(dim=-1)
+
+    def forward(self, q, k):
+        return self.softmax(torch.bmm(q, k))
+
+
+class CosineSimilarity(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, q, k):
+        """
+        q:   (b, t, d)
+        k:   (b, d, t)
+        out: (b, t, t)
+        """
+        q_norm = LA.vector_norm(q, dim=-1, keepdim=True)
+        k_norm = LA.vector_norm(k, dim=1, keepdim=True)
+        s = torch.bmm(q, k) / torch.bmm(q_norm, k_norm) + 1
+        a = s / s.sum(dim=-1, keepdim=True)
+        return a
+
+
+class AdaAttN(nn.Module):
+    def __init__(self, token_length, qkv_dim, activation="softmax"):
+        super().__init__()
+        self.f = nn.Linear(qkv_dim, qkv_dim)
+        self.g = nn.Linear(qkv_dim, qkv_dim)
+        self.h = nn.Linear(qkv_dim, qkv_dim)
+        self.norm_q = nn.InstanceNorm1d(token_length, affine=False)
+        self.norm_k = nn.InstanceNorm1d(token_length, affine=False)
+        self.norm_v = nn.InstanceNorm1d(token_length, affine=False)
+
+        if activation == "softmax":
+            self.activation = Softmax()
+        elif activation == "cosine":
+            self.activation = CosineSimilarity()
+        else:
+            raise ValueError(f"Unknown activation function: {activation}")
+
+    def forward(self, fc, fs, fcs):
+        # Q (b, t, d)
+        Q = self.f(self.norm_q(fc))
+
+        # K (b, t, d) -> (b, d, t)
+        K = self.g(self.norm_k(fs))
+        K = K.permute(0, 2, 1)
+
+        # V (b, t, d)
+        V = self.h(fs)
+
+        # A (b, t, t)
+        A = self.activation(Q, K)
+
+        # M = A * V -> (b, t, d)
+        # S (b, t, d)
+        M = torch.bmm(A, V)
+        Var = torch.bmm(A, V**2) - M**2
+        S = torch.sqrt(Var.clamp(min=1e-6))
+
+        return S * self.norm_v(fcs) + M
+
+
+class StylizingNetwork(torch.nn.Module):
+    def __init__(self, enc_layer_num: int = 3, activation="softmax"):
+        super().__init__()
+        self.enc_layer_num = enc_layer_num
+        self.vit_c = ViT(num_layers=enc_layer_num, pos_embedding=True)
+        self.vit_s = ViT(num_layers=enc_layer_num, pos_embedding=False)
+
+        self.adaattn = nn.ModuleList()
+        for i in range(enc_layer_num):
+            self.adaattn.append(AdaAttN(token_length=1024, qkv_dim=512, activation=activation))
+
+        self.decoder = Decoder()
+
+    def forward(self, c, s):
+        fc = self.vit_c(c)
+        fs = self.vit_s(s)
+
+        fcs = self.adaattn[0](fc[0], fs[0], fc[0])
+        for i in range(1, self.enc_layer_num):
+            fcs = self.adaattn[i](fc[i], fs[i], fcs)
+
+        fcs = fcs.permute(0, 2, 1).reshape(-1, 512, 32, 32)
+        cs = self.decoder(fcs)
+        return cs
 
 
 if __name__ == "__main__":
-    img = torch.randn(1, 3, 360, 640)
-    proj = LinearProjection()
-    x1 = proj(img)
-    print(x1.shape)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    cape = CAPE()
-    x2 = cape(x1)
-    print(x2.shape)
+    # Load a random tensor and normalize it
+    c = torch.rand(4, 3, 256, 256).to(device)
+    s = torch.rand(4, 3, 256, 256).to(device)
 
-    enc = TransformerEncoder()
-    x3 = enc(x1, x2)
-    print(x3.shape)
+    # Create a StylizingNetwork model and forward propagate the input tensor
+    model = StylizingNetwork().to(device)
+    cs = model(c, s)
+    print(c.shape)
+    print(cs.shape)
