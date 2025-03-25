@@ -1,10 +1,17 @@
 import torch
 
-from utilities import toPil
+from PIL import Image
+
+from utilities import toTensor255, toPil
 from datasets import CocoWikiArt
 from network import StylizingNetwork
 
 
+MODEL_PATH = "./models/ViT-AdaAttN-image_epoch_5_batchSize_8.pth"
+STYLE_PATH = "./styles/starry-night.jpg"
+# STYLE_PATH = None
+ACTIAVTION = "softmax"
+# ACTIAVTION = "cosine"
 ENC_LAYER_NUM = 3
 
 
@@ -13,16 +20,20 @@ if __name__ == "__main__":
 
     dataset = CocoWikiArt()
     coco, wikiart = dataset[66666]
-    print("CocoWikiArt dataset")
-    print("dataset length:", len(dataset))
 
-    model = StylizingNetwork(enc_layer_num=ENC_LAYER_NUM).to(device)
+    model = StylizingNetwork(enc_layer_num=ENC_LAYER_NUM, activation=ACTIAVTION).to(device)
     model.load_state_dict(torch.load("./models/ViT-AdaAttN-image_epoch_5_batchSize_8.pth", weights_only=True), strict=True)
     model.eval()
 
-    toPil(coco.byte()).save("./coco.png")
-    toPil(wikiart.byte()).save("./wikiart.png")
-    c, s = coco.unsqueeze(0).to(device), wikiart.unsqueeze(0).to(device)
+    c = coco.unsqueeze(0).to(device)
+    if STYLE_PATH is not None:
+        s = Image.open(STYLE_PATH).convert("RGB").resize((256, 256), Image.BILINEAR)
+        s = toTensor255(s).unsqueeze(0).to(device)
+    else:
+        s = wikiart.unsqueeze(0).to(device)
+
+    toPil(c.squeeze(0).byte()).save("./content.png")
+    toPil(s.squeeze(0).byte()).save("./style.png")
 
     with torch.no_grad():
         cs = model(c, s)

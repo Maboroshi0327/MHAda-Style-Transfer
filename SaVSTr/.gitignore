@@ -4,6 +4,9 @@ Videvo/
 models/*
 !models/models_save_path
 
-coco.png
+content.png
+style.png
 stylized.png
-wikiart.png
+attention_0.png
+attention_1.png
+attention_2.png
