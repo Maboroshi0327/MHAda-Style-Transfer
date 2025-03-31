@@ -7,14 +7,19 @@ import matplotlib.pyplot as plt
 from utilities import toTensor255, toPil
 from network import StylizingNetwork
 from datasets import CocoWikiArt
+from vit import ViT
 
 
-MODEL_PATH = "./models/ViT-AdaAttN-image_epoch_2_batchSize_8.pth"
+ENC_LAYER_NUM = 3
+MODEL_EPOCH = 5
+ADA_PATH = f"./models/AdaAttN_epoch_{MODEL_EPOCH}_batchSize_8.pth"
+VITC_PATH = f"./models/ViT_c_epoch_{MODEL_EPOCH}_batchSize_8.pth"
+VITS_PATH = f"./models/ViT_s_epoch_{MODEL_EPOCH}_batchSize_8.pth"
+
 STYLE_PATH = "./styles/starry-night.jpg"
 # STYLE_PATH = None
 ACTIAVTION = "softmax"
 # ACTIAVTION = "cosine"
-ENC_LAYER_NUM = 3
 
 
 def get_attention_hook(name):
@@ -28,15 +33,23 @@ if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # Load the model
+    vit_c = ViT(num_layers=ENC_LAYER_NUM, pos_embedding=True).to(device)
+    vit_s = ViT(num_layers=ENC_LAYER_NUM, pos_embedding=False).to(device)
     model = StylizingNetwork(enc_layer_num=ENC_LAYER_NUM, activation=ACTIAVTION).to(device)
-    model.load_state_dict(torch.load(MODEL_PATH, weights_only=True), strict=True)
+
+    vit_c.load_state_dict(torch.load(VITC_PATH, weights_only=True), strict=True)
+    vit_s.load_state_dict(torch.load(VITS_PATH, weights_only=True), strict=True)
+    model.load_state_dict(torch.load(ADA_PATH, weights_only=True), strict=True)
+
+    vit_c.eval()
+    vit_s.eval()
     model.eval()
 
     # Initialize the dictionary to store attentions
     attentions = {}
 
     # Register hook for each transformer block in the encoder
-    for idx, layer in enumerate(model.vit_c.encoder.layers):
+    for idx, layer in enumerate(vit_c.encoder.layers):
         layer.self_attention.register_forward_hook(get_attention_hook(f"encoder_layer_{idx}"))
 
     # Load dataset
@@ -53,7 +66,9 @@ if __name__ == "__main__":
 
     # Model inference
     with torch.no_grad():
-        cs = model(c, s)
+        fc = vit_c(c)
+        fs = vit_s(s)
+        cs = model(fc, fs)
         cs = cs.clamp(0, 255)
 
     # Save images

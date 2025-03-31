@@ -7,17 +7,22 @@ from tqdm import tqdm
 from collections import OrderedDict
 
 from datasets import CocoWikiArt
-from lossfn import global_stylized_loss, local_feature_loss
+from lossfn import style_loss, content_loss, identity_loss_1, identity_loss_2
 from network import StylizingNetwork
 from vgg19 import VGG19
+from vit import ViT
 
 
 EPOCH_START = 1
-EPOCH_END = 5
+EPOCH_END = 20
 BATCH_SIZE = 8
 LR = 1e-4
-LAMBDA_G = 30
-LAMBDA_L = 10
+
+LAMBDA_S = 30
+LAMBDA_C = 10
+LAMBDA_ID1 = 1e-2
+LAMBDA_ID2 = 1
+
 ACTIAVTION = "softmax"
 ENC_LAYER_NUM = 3
 
@@ -35,7 +40,11 @@ def train():
     )
 
     # Model
+    vit_c = ViT(num_layers=ENC_LAYER_NUM, pos_embedding=True).to(device)
+    vit_s = ViT(num_layers=ENC_LAYER_NUM, pos_embedding=False).to(device)
     model = StylizingNetwork(enc_layer_num=ENC_LAYER_NUM, activation=ACTIAVTION).to(device)
+    vit_c.train()
+    vit_s.train()
     model.train()
 
     # VGG19 as feature extractor (loss function)
@@ -63,30 +72,40 @@ def train():
             optimizer.zero_grad()
 
             # Forward pass
-            cs = model(content, style)
+            fc_vc = vit_c(content)
+            fs_vs = vit_s(style)
+            cs = model(fc_vc, fs_vs)
+
+            fc_vs = vit_s(content)
+            fs_vc = vit_c(style)
+            cc = model(fc_vc, fc_vs)
+            ss = model(fs_vc, fs_vs)
 
             # VGG19 feature extractor
-            vgg_fcs = vgg19(cs)
             vgg_fs = vgg19(style)
             vgg_fc = vgg19(content)
+            vgg_fcs = vgg19(cs)
+            vgg_fcc = vgg19(cc)
+            vgg_fss = vgg19(ss)
 
-            # Global stylized loss
-            loss_gs = 0
-            loss_gs += global_stylized_loss(vgg_fcs["relu2_1"], vgg_fs["relu2_1"], mse)
-            loss_gs += global_stylized_loss(vgg_fcs["relu3_1"], vgg_fs["relu3_1"], mse)
-            loss_gs += global_stylized_loss(vgg_fcs["relu4_1"], vgg_fs["relu4_1"], mse)
-            loss_gs += global_stylized_loss(vgg_fcs["relu5_1"], vgg_fs["relu5_1"], mse)
-            loss_gs *= LAMBDA_G
+            # Style loss
+            loss_s = style_loss(vgg_fcs, vgg_fs, mse)
+            loss_s *= LAMBDA_S
 
-            # Local feature loss
-            loss_lf = 0
-            loss_lf += local_feature_loss(vgg_fcs["relu3_1"], vgg_fc["relu3_1"], mse)
-            loss_lf += local_feature_loss(vgg_fcs["relu4_1"], vgg_fc["relu4_1"], mse)
-            loss_lf += local_feature_loss(vgg_fcs["relu5_1"], vgg_fc["relu5_1"], mse)
-            loss_lf *= LAMBDA_L
+            # Content loss
+            loss_c = content_loss(vgg_fcs, vgg_fc, mse)
+            loss_c *= LAMBDA_C
+
+            # Identity loss 1
+            loss_id1 = identity_loss_1(cc, content, ss, style, mse)
+            loss_id1 *= LAMBDA_ID1
+
+            # Identity loss 2
+            loss_id2 = identity_loss_2(vgg_fcc, vgg_fc, vgg_fss, vgg_fs, mse)
+            loss_id2 *= LAMBDA_ID2
 
             # Loss
-            loss = loss_gs + loss_lf
+            loss = loss_s + loss_c + loss_id1 + loss_id2
 
             # Backward pass
             loss.backward()
@@ -97,8 +116,10 @@ def train():
             postfix = OrderedDict(
                 [
                     ("loss", loss.item()),
-                    ("loss_gs", loss_gs.item()),
-                    ("loss_lf", loss_lf.item()),
+                    ("loss_s", loss_s.item()),
+                    ("loss_c", loss_c.item()),
+                    ("loss_id1", loss_id1.item()),
+                    ("loss_id2", loss_id2.item()),
                 ]
             )
 
@@ -106,7 +127,9 @@ def train():
             batch_iterator.set_postfix(postfix)
 
         # Save model
-        torch.save(model.state_dict(), f"./models/ViT-AdaAttN-image_epoch_{epoch}_batchSize_{BATCH_SIZE}.pth")
+        torch.save(vit_c.state_dict(), f"./models/ViT_c_epoch_{epoch}_batchSize_{BATCH_SIZE}.pth")
+        torch.save(vit_s.state_dict(), f"./models/ViT_s_epoch_{epoch}_batchSize_{BATCH_SIZE}.pth")
+        torch.save(model.state_dict(), f"./models/AdaAttN_epoch_{epoch}_batchSize_{BATCH_SIZE}.pth")
 
 
 if __name__ == "__main__":

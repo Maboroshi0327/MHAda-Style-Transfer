@@ -119,12 +119,17 @@ class CosineSimilarity(nn.Module):
 class AdaAttN(nn.Module):
     def __init__(self, token_length, qkv_dim, activation="softmax"):
         super().__init__()
-        self.f = nn.Linear(qkv_dim, qkv_dim)
-        self.g = nn.Linear(qkv_dim, qkv_dim)
-        self.h = nn.Linear(qkv_dim, qkv_dim)
-        self.norm_q = nn.InstanceNorm1d(token_length, affine=False)
-        self.norm_k = nn.InstanceNorm1d(token_length, affine=False)
-        self.norm_v = nn.InstanceNorm1d(token_length, affine=False)
+        self.f = nn.Conv2d(qkv_dim, qkv_dim, 1)
+        self.g = nn.Conv2d(qkv_dim, qkv_dim, 1)
+        self.h = nn.Conv2d(qkv_dim, qkv_dim, 1)
+        self.norm_q = nn.InstanceNorm2d(qkv_dim, affine=False)
+        self.norm_k = nn.InstanceNorm2d(qkv_dim, affine=False)
+        self.norm_v = nn.InstanceNorm2d(qkv_dim, affine=False)
+
+        self.qkv_dim = qkv_dim
+        self.width = int((token_length) ** 0.5)
+        self.height = int((token_length) ** 0.5)
+        self.token_length = token_length
 
         if activation == "softmax":
             self.activation = Softmax()
@@ -133,35 +138,46 @@ class AdaAttN(nn.Module):
         else:
             raise ValueError(f"Unknown activation function: {activation}")
 
-    def forward(self, fc, fs, fcs):
-        # Q (b, t, d)
+    def forward(self, fc: torch.Tensor, fs: torch.Tensor, fcs: torch.Tensor):
+        fc = fc.permute(0, 2, 1).view(-1, self.qkv_dim, self.height, self.width)
+        fs = fs.permute(0, 2, 1).view(-1, self.qkv_dim, self.height, self.width)
+        fcs = fcs.permute(0, 2, 1).view(-1, self.qkv_dim, self.height, self.width)
+
+        # Q^T
         Q = self.f(self.norm_q(fc))
+        b, _, h, w = Q.size()
+        Q = Q.view(b, -1, h * w).permute(0, 2, 1)
 
-        # K (b, t, d) -> (b, d, t)
+        # K
         K = self.g(self.norm_k(fs))
-        K = K.permute(0, 2, 1)
+        b, _, h, w = K.size()
+        K = K.view(b, -1, h * w)
 
-        # V (b, t, d)
+        # V^T
         V = self.h(fs)
+        b, _, h, w = V.size()
+        V = V.view(b, -1, h * w).permute(0, 2, 1)
 
-        # A (b, t, t)
+        # A * V^T
         A = self.activation(Q, K)
-
-        # M = A * V -> (b, t, d)
-        # S (b, t, d)
         M = torch.bmm(A, V)
+
+        # S
         Var = torch.bmm(A, V**2) - M**2
         S = torch.sqrt(Var.clamp(min=1e-6))
 
-        return S * self.norm_v(fcs) + M
+        # Reshape M and S
+        b, _, h, w = fcs.size()
+        M = M.view(b, h, w, -1).permute(0, 3, 1, 2)
+        S = S.view(b, h, w, -1).permute(0, 3, 1, 2)
+
+        return (S * self.norm_v(fcs) + M).view(-1, self.qkv_dim, self.token_length).permute(0, 2, 1)
 
 
 class StylizingNetwork(torch.nn.Module):
     def __init__(self, enc_layer_num: int = 3, activation="softmax"):
         super().__init__()
         self.enc_layer_num = enc_layer_num
-        self.vit_c = ViT(num_layers=enc_layer_num, pos_embedding=True)
-        self.vit_s = ViT(num_layers=enc_layer_num, pos_embedding=False)
 
         self.adaattn = nn.ModuleList()
         for i in range(enc_layer_num):
@@ -169,10 +185,7 @@ class StylizingNetwork(torch.nn.Module):
 
         self.decoder = Decoder()
 
-    def forward(self, c, s):
-        fc = self.vit_c(c)
-        fs = self.vit_s(s)
-
+    def forward(self, fc, fs):
         fcs = self.adaattn[0](fc[0], fs[0], fc[0])
         for i in range(1, self.enc_layer_num):
             fcs = self.adaattn[i](fc[i], fs[i], fcs)
@@ -190,7 +203,13 @@ if __name__ == "__main__":
     s = torch.rand(4, 3, 256, 256).to(device)
 
     # Create a StylizingNetwork model and forward propagate the input tensor
+    vit_c = ViT(pos_embedding=True).to(device)
+    vit_s = ViT(pos_embedding=False).to(device)
     model = StylizingNetwork().to(device)
-    cs = model(c, s)
+
+    # Forward pass
+    fc = vit_c(c)
+    fs = vit_s(s)
+    cs = model(fc, fs)
     print(c.shape)
     print(cs.shape)
