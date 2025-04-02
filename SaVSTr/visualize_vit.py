@@ -11,12 +11,13 @@ from vit import ViT
 
 
 ENC_LAYER_NUM = 3
-MODEL_EPOCH = 5
+MODEL_EPOCH = 20
 ADA_PATH = f"./models/AdaAttN_epoch_{MODEL_EPOCH}_batchSize_8.pth"
 VITC_PATH = f"./models/ViT_c_epoch_{MODEL_EPOCH}_batchSize_8.pth"
 VITS_PATH = f"./models/ViT_s_epoch_{MODEL_EPOCH}_batchSize_8.pth"
 
-STYLE_PATH = "./styles/starry-night.jpg"
+CONTENT_IDX = 66666
+STYLE_PATH = "./styles/candy.jpg"
 # STYLE_PATH = None
 ACTIAVTION = "softmax"
 # ACTIAVTION = "cosine"
@@ -49,12 +50,12 @@ if __name__ == "__main__":
     attentions = {}
 
     # Register hook for each transformer block in the encoder
-    for idx, layer in enumerate(vit_c.encoder.layers):
+    for idx, layer in enumerate(vit_s.encoder.layers):
         layer.self_attention.register_forward_hook(get_attention_hook(f"encoder_layer_{idx}"))
 
     # Load dataset
     dataset = CocoWikiArt()
-    coco, wikiart = dataset[66666]
+    coco, wikiart = dataset[CONTENT_IDX]
 
     # Use wikiart as style image if STYLE_PATH is None
     c = coco.unsqueeze(0).to(device)

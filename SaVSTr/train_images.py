@@ -20,7 +20,7 @@ LR = 1e-4
 
 LAMBDA_S = 30
 LAMBDA_C = 10
-LAMBDA_ID1 = 1e-2
+LAMBDA_ID1 = 1e-1
 LAMBDA_ID2 = 1
 
 ACTIAVTION = "softmax"
@@ -56,6 +56,8 @@ def train():
 
     # Optimizer
     optimizer = optim.Adam(model.parameters(), lr=LR)
+    optimizer_vit_c = optim.Adam(vit_c.parameters(), lr=LR)
+    optimizer_vit_s = optim.Adam(vit_s.parameters(), lr=LR)
 
     # Training loop
     for epoch in range(EPOCH_START, EPOCH_END + 1):
@@ -70,6 +72,8 @@ def train():
 
             # Zero the gradients
             optimizer.zero_grad()
+            optimizer_vit_c.zero_grad()
+            optimizer_vit_s.zero_grad()
 
             # Forward pass
             fc_vc = vit_c(content)
@@ -110,7 +114,10 @@ def train():
             # Backward pass
             loss.backward()
 
+            # Update weights
             optimizer.step()
+            optimizer_vit_c.step()
+            optimizer_vit_s.step()
 
             # Use OrderedDict to set suffix information
             postfix = OrderedDict(
