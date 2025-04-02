@@ -12,9 +12,10 @@ from vit import ViT
 
 ENC_LAYER_NUM = 3
 MODEL_EPOCH = 20
-ADA_PATH = f"./models/AdaAttN_epoch_{MODEL_EPOCH}_batchSize_8.pth"
-VITC_PATH = f"./models/ViT_c_epoch_{MODEL_EPOCH}_batchSize_8.pth"
-VITS_PATH = f"./models/ViT_s_epoch_{MODEL_EPOCH}_batchSize_8.pth"
+BATCH_SIZE = 8 // torch.cuda.device_count()
+ADA_PATH = f"./models/AdaAttN_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
+VITC_PATH = f"./models/ViT_c_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
+VITS_PATH = f"./models/ViT_s_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
 
 CONTENT_IDX = 66666
 STYLE_PATH = "./styles/candy.jpg"
