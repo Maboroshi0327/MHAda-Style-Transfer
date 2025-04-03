@@ -5,15 +5,15 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 from utilities import toTensor255, toPil
-from network import StylizingNetwork
+from network import AdaViT
 from datasets import CocoWikiArt
 from vit import ViT_torch
 
 
 ENC_LAYER_NUM = 3
 MODEL_EPOCH = 20
-BATCH_SIZE = 8 // torch.cuda.device_count()
-ADA_PATH = f"./models/AdaAttN_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
+BATCH_SIZE = 8
+ADA_PATH = f"./models/AdaViT_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
 VITC_PATH = f"./models/ViT_c_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
 VITS_PATH = f"./models/ViT_s_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
 
@@ -35,9 +35,9 @@ if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # Load the model
-    vit_c = ViT_torch(num_layers=ENC_LAYER_NUM, pos_embedding=True).to(device)
-    vit_s = ViT_torch(num_layers=ENC_LAYER_NUM, pos_embedding=False).to(device)
-    model = StylizingNetwork(enc_layer_num=ENC_LAYER_NUM, activation=ACTIAVTION).to(device)
+    vit_c = ViT_torch(pos_embedding=True).to(device)
+    vit_s = ViT_torch(pos_embedding=False).to(device)
+    model = AdaViT(activation=ACTIAVTION).to(device)
 
     vit_c.load_state_dict(torch.load(VITC_PATH, weights_only=True), strict=True)
     vit_s.load_state_dict(torch.load(VITS_PATH, weights_only=True), strict=True)

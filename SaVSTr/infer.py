@@ -4,7 +4,7 @@ from PIL import Image
 
 from utilities import toTensor255, toPil
 from datasets import CocoWikiArt
-from network import StylizingNetwork
+from network import AdaViT
 
 
 MODEL_PATH = "./models/ViT-AdaAttN-image_epoch_5_batchSize_8.pth"
@@ -21,7 +21,7 @@ if __name__ == "__main__":
     dataset = CocoWikiArt()
     coco, wikiart = dataset[66666]
 
-    model = StylizingNetwork(enc_layer_num=ENC_LAYER_NUM, activation=ACTIAVTION).to(device)
+    model = AdaViT(enc_layer_num=ENC_LAYER_NUM, activation=ACTIAVTION).to(device)
     model.load_state_dict(torch.load("./models/ViT-AdaAttN-image_epoch_5_batchSize_8.pth", weights_only=True), strict=True)
     model.eval()
 

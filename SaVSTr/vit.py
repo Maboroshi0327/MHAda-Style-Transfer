@@ -104,7 +104,7 @@ class ViT_MultiScale(nn.Module):
         x = x + self.pos_embedding
 
         x1, x2, x3 = self.encoder(x)
-        return x1, x2, x3
+        return [x1, x2, x3]
 
 
 class ViT_torch(VisionTransformer_torch):
@@ -163,12 +163,11 @@ def test_vit_multiscale():
 
     # Create a ViT model and forward propagate the input tensor
     model = ViT_MultiScale().to(device)
-    x1, x2, x3 = model(x)
+    outputs = model(x)
 
     # Print the shape of the output tensors
-    print(x1.shape)
-    print(x2.shape)
-    print(x3.shape)
+    for output in outputs:
+        print(output.shape)
 
 
 def test_vit_torch():

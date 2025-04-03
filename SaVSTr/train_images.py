@@ -8,7 +8,7 @@ from collections import OrderedDict
 
 from datasets import CocoWikiArt
 from lossfn import style_loss, content_loss, identity_loss_1, identity_loss_2
-from network import StylizingNetwork
+from network import AdaViT
 from vgg19 import VGG19
 from vit import ViT_torch
 
@@ -42,7 +42,7 @@ def train():
     # Model
     vit_c = ViT_torch(num_layers=ENC_LAYER_NUM, pos_embedding=True).to(device)
     vit_s = ViT_torch(num_layers=ENC_LAYER_NUM, pos_embedding=False).to(device)
-    model = StylizingNetwork(enc_layer_num=ENC_LAYER_NUM, activation=ACTIAVTION).to(device)
+    model = AdaViT(activation=ACTIAVTION).to(device)
     vit_c.train()
     vit_s.train()
     model.train()
@@ -136,7 +136,7 @@ def train():
         # Save model
         torch.save(vit_c.state_dict(), f"./models/ViT_c_epoch_{epoch}_batchSize_{BATCH_SIZE}.pth")
         torch.save(vit_s.state_dict(), f"./models/ViT_s_epoch_{epoch}_batchSize_{BATCH_SIZE}.pth")
-        torch.save(model.state_dict(), f"./models/AdaAttN_epoch_{epoch}_batchSize_{BATCH_SIZE}.pth")
+        torch.save(model.state_dict(), f"./models/AdaViT_epoch_{epoch}_batchSize_{BATCH_SIZE}.pth")
 
 
 if __name__ == "__main__":
