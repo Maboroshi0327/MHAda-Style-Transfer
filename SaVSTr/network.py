@@ -5,7 +5,7 @@ from torch.nn import functional as F
 
 import numpy as np
 
-from vit import ViT
+from vit import ViT_torch
 
 
 class Conv(nn.Module):
@@ -203,8 +203,8 @@ if __name__ == "__main__":
     s = torch.rand(4, 3, 256, 256).to(device)
 
     # Create a StylizingNetwork model and forward propagate the input tensor
-    vit_c = ViT(pos_embedding=True).to(device)
-    vit_s = ViT(pos_embedding=False).to(device)
+    vit_c = ViT_torch(pos_embedding=True).to(device)
+    vit_s = ViT_torch(pos_embedding=False).to(device)
     model = StylizingNetwork().to(device)
 
     # Forward pass

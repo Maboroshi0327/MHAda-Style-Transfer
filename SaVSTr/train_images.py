@@ -10,7 +10,7 @@ from datasets import CocoWikiArt
 from lossfn import style_loss, content_loss, identity_loss_1, identity_loss_2
 from network import StylizingNetwork
 from vgg19 import VGG19
-from vit import ViT
+from vit import ViT_torch
 
 
 EPOCH_START = 1
@@ -40,8 +40,8 @@ def train():
     )
 
     # Model
-    vit_c = ViT(num_layers=ENC_LAYER_NUM, pos_embedding=True).to(device)
-    vit_s = ViT(num_layers=ENC_LAYER_NUM, pos_embedding=False).to(device)
+    vit_c = ViT_torch(num_layers=ENC_LAYER_NUM, pos_embedding=True).to(device)
+    vit_s = ViT_torch(num_layers=ENC_LAYER_NUM, pos_embedding=False).to(device)
     model = StylizingNetwork(enc_layer_num=ENC_LAYER_NUM, activation=ACTIAVTION).to(device)
     vit_c.train()
     vit_s.train()

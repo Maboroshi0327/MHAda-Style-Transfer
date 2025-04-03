@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from utilities import toTensor255, toPil
 from network import StylizingNetwork
 from datasets import CocoWikiArt
-from vit import ViT
+from vit import ViT_torch
 
 
 ENC_LAYER_NUM = 3
@@ -35,8 +35,8 @@ if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # Load the model
-    vit_c = ViT(num_layers=ENC_LAYER_NUM, pos_embedding=True).to(device)
-    vit_s = ViT(num_layers=ENC_LAYER_NUM, pos_embedding=False).to(device)
+    vit_c = ViT_torch(num_layers=ENC_LAYER_NUM, pos_embedding=True).to(device)
+    vit_s = ViT_torch(num_layers=ENC_LAYER_NUM, pos_embedding=False).to(device)
     model = StylizingNetwork(enc_layer_num=ENC_LAYER_NUM, activation=ACTIAVTION).to(device)
 
     vit_c.load_state_dict(torch.load(VITC_PATH, weights_only=True), strict=True)
