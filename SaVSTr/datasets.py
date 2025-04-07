@@ -28,9 +28,9 @@ def WikiArt(path="../datasets/WikiArt", size_crop: tuple = (256, 256)):
 
 
 class CocoWikiArt(Dataset):
-    def __init__(self, coco_path="../datasets/coco", wikiart_path="../datasets/WikiArt"):
-        self.coco = Coco(coco_path)
-        self.wikiart = WikiArt(wikiart_path)
+    def __init__(self, image_size: tuple = (256, 256), coco_path="../datasets/coco", wikiart_path="../datasets/WikiArt"):
+        self.coco = Coco(coco_path, image_size)
+        self.wikiart = WikiArt(wikiart_path, image_size)
         self.coco_len = len(self.coco)
         self.wikiart_len = len(self.wikiart)
 
@@ -133,6 +133,7 @@ if __name__ == "__main__":
     print("dataset length:", len(dataset))
 
     from utilities import toPil
+
     toPil(c.byte()).save("coco.png")
     toPil(s.byte()).save("wikiart.png")
     print("Saved coco.png and wikiart.png")

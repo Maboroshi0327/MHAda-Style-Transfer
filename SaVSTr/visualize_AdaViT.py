@@ -5,30 +5,22 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 from utilities import toTensor255, toPil
-from network import AdaViT
 from datasets import CocoWikiArt
 from vit import ViT_torch
+from network import AdaViT
 
 
-ENC_LAYER_NUM = 3
 MODEL_EPOCH = 20
 BATCH_SIZE = 8
 ADA_PATH = f"./models/AdaViT_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
-VITC_PATH = f"./models/ViT_c_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
-VITS_PATH = f"./models/ViT_s_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
+VITC_PATH = f"./models/ViT_C_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
+VITS_PATH = f"./models/ViT_S_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
 
 CONTENT_IDX = 66666
 STYLE_PATH = "./styles/candy.jpg"
 # STYLE_PATH = None
 ACTIAVTION = "softmax"
 # ACTIAVTION = "cosine"
-
-
-def get_attention_hook(name):
-    def hook(module, input, output):
-        attentions[name] = output[0]
-
-    return hook
 
 
 if __name__ == "__main__":
@@ -46,13 +38,6 @@ if __name__ == "__main__":
     vit_c.eval()
     vit_s.eval()
     model.eval()
-
-    # Initialize the dictionary to store attentions
-    attentions = {}
-
-    # Register hook for each transformer block in the encoder
-    for idx, layer in enumerate(vit_s.encoder.layers):
-        layer.self_attention.register_forward_hook(get_attention_hook(f"encoder_layer_{idx}"))
 
     # Load dataset
     dataset = CocoWikiArt()
@@ -78,16 +63,16 @@ if __name__ == "__main__":
     toPil(s.squeeze(0).byte()).save("./style.png")
     toPil(cs.squeeze(0).byte()).save("./stylized.png")
 
-    # Plot attention
-    attentions = list(attentions.values())
-    for idx, attn in enumerate(attentions):
-        attn = attn.mean(dim=-1)
-        attn = attn.view(32, 32)
-        attn = attn.detach().cpu().numpy()
+    # Plot Feature Maps
+    for idx, feat in enumerate(fs):
+        b, c, h, w = feat.shape
+        feat = feat.mean(dim=1)
+        feat = feat.view(h, w)
+        feat = feat.detach().cpu().numpy()
 
         plt.figure(figsize=(8, 8))
-        sns.heatmap(attn, square=True, cmap="viridis")
-        plt.title(f"Encoder Layer {idx} Attention")
+        sns.heatmap(feat, square=True, cmap="viridis")
+        plt.title(f"Feature Maps {idx + 1}")
         plt.xlabel("Token")
         plt.ylabel("Token")
         plt.savefig(f"./attention_{idx}.png")

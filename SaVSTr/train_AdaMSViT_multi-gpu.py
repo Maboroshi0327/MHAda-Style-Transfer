@@ -12,12 +12,12 @@ from collections import OrderedDict
 
 from datasets import CocoWikiArt
 from lossfn import style_loss, content_loss, identity_loss_1, identity_loss_2
-from network import AdaViT
+from network import AdaMSViT
 from vgg19 import VGG19
-from vit import ViT_torch
+from vit import ViT_MultiScale
 
 # Use torchrun to launch multi-GPU training
-# torchrun --nproc_per_node=2 train_images_multi-gpu.py
+# torchrun --nproc_per_node=2 train_AdaMSViT_multi-gpu.py
 
 EPOCH_START = 1
 EPOCH_END = 20
@@ -26,11 +26,11 @@ LR = 1e-4
 
 LAMBDA_S = 30
 LAMBDA_C = 10
-LAMBDA_ID1 = 1
+LAMBDA_ID1 = 1e-1
 LAMBDA_ID2 = 1
 
+IMAGE_SIZE = (256, 256)
 ACTIAVTION = "softmax"
-ENC_LAYER_NUM = 3
 
 
 def train(local_rank):
@@ -42,7 +42,7 @@ def train(local_rank):
     dist.init_process_group(backend="nccl")
 
     # Datasets & DistributedSampler
-    dataset = CocoWikiArt()
+    dataset = CocoWikiArt(IMAGE_SIZE)
     sampler = DistributedSampler(dataset)
     dataloader = DataLoader(
         dataset,
@@ -53,14 +53,14 @@ def train(local_rank):
     )
 
     # Build the model and move it to the GPU
-    vit_c = ViT_torch(num_layers=ENC_LAYER_NUM, pos_embedding=True).to(device)
-    vit_s = ViT_torch(num_layers=ENC_LAYER_NUM, pos_embedding=False).to(device)
-    model = AdaViT(activation=ACTIAVTION).to(device)
+    vit_c = ViT_MultiScale(image_size=IMAGE_SIZE, pos_embedding=True).to(device)
+    vit_s = ViT_MultiScale(image_size=IMAGE_SIZE, pos_embedding=False).to(device)
+    model = AdaMSViT(activation=ACTIAVTION).to(device)
     vgg19 = VGG19().to(device)
 
     # Wrap vit_c, vit_s and model with DDP for distributed multi-GPU training.
-    vit_c = DDP(vit_c, device_ids=[local_rank], find_unused_parameters=True)
-    vit_s = DDP(vit_s, device_ids=[local_rank], find_unused_parameters=True)
+    vit_c = DDP(vit_c, device_ids=[local_rank])
+    vit_s = DDP(vit_s, device_ids=[local_rank])
     model = DDP(model, device_ids=[local_rank])
 
     # Set the model to training mode or evaluation mode
@@ -134,9 +134,9 @@ def train(local_rank):
 
         # Save model only on rank 0
         if dist.get_rank() == 0:
-            torch.save(vit_c.module.state_dict(), f"./models/ViT_c_epoch_{epoch}_batchSize_{BATCH_SIZE}.pth")
-            torch.save(vit_s.module.state_dict(), f"./models/ViT_s_epoch_{epoch}_batchSize_{BATCH_SIZE}.pth")
-            torch.save(model.module.state_dict(), f"./models/AdaViT_epoch_{epoch}_batchSize_{BATCH_SIZE}.pth")
+            torch.save(vit_c.module.state_dict(), f"./models/ViT_MultiScale_C_epoch_{epoch}_batchSize_{BATCH_SIZE}.pth")
+            torch.save(vit_s.module.state_dict(), f"./models/ViT_MultiScale_S_epoch_{epoch}_batchSize_{BATCH_SIZE}.pth")
+            torch.save(model.module.state_dict(), f"./models/AdaMSViT_epoch_{epoch}_batchSize_{BATCH_SIZE}.pth")
 
     # Clean up distributed process group
     dist.destroy_process_group()

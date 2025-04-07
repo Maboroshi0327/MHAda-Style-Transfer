@@ -20,7 +20,7 @@ LR = 1e-4
 
 LAMBDA_S = 30
 LAMBDA_C = 10
-LAMBDA_ID1 = 1e-1
+LAMBDA_ID1 = 1
 LAMBDA_ID2 = 1
 
 ACTIAVTION = "softmax"
@@ -134,8 +134,8 @@ def train():
             batch_iterator.set_postfix(postfix)
 
         # Save model
-        torch.save(vit_c.state_dict(), f"./models/ViT_c_epoch_{epoch}_batchSize_{BATCH_SIZE}.pth")
-        torch.save(vit_s.state_dict(), f"./models/ViT_s_epoch_{epoch}_batchSize_{BATCH_SIZE}.pth")
+        torch.save(vit_c.state_dict(), f"./models/ViT_C_epoch_{epoch}_batchSize_{BATCH_SIZE}.pth")
+        torch.save(vit_s.state_dict(), f"./models/ViT_S_epoch_{epoch}_batchSize_{BATCH_SIZE}.pth")
         torch.save(model.state_dict(), f"./models/AdaViT_epoch_{epoch}_batchSize_{BATCH_SIZE}.pth")
 
 

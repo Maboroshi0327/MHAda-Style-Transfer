@@ -6,6 +6,19 @@ from torchvision.models.vision_transformer import Encoder as Encoder_torch
 from collections import OrderedDict
 
 
+class Repatch(nn.Module):
+    def __init__(self, in_channels: int, out_channels: int):
+        super().__init__()
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=2, stride=2)
+        self.out_channels = out_channels
+
+    def forward(self, x: torch.Tensor):
+        _, _, h, w = x.shape
+        x = self.conv(x)
+        x = x.view(-1, self.out_channels, h * w // 4).permute(0, 2, 1)
+        return x
+
+
 class EncoderBlock(nn.Module):
     def __init__(self, num_heads: int, hidden_dim: int, mlp_dim: int):
         super().__init__()
@@ -26,44 +39,6 @@ class EncoderBlock(nn.Module):
         y = self.ln2(x)
         y = self.mlp(y)
         return x + y
-
-
-class Encoder(nn.Module):
-    def __init__(
-        self,
-        num_heads: int,
-        hidden_dim: int,
-        mlp_dim: int,
-        scale: list,
-    ):
-        super().__init__()
-        self.hidden_dim = hidden_dim
-        self.scale = scale
-
-        self.encoder_layer_1 = EncoderBlock(num_heads, hidden_dim, mlp_dim)
-        self.encoder_layer_2 = EncoderBlock(num_heads, hidden_dim, mlp_dim)
-        self.encoder_layer_3 = EncoderBlock(num_heads, hidden_dim, mlp_dim)
-
-        self.conv_proj = nn.ModuleList(
-            [
-                nn.Conv2d(in_channels=hidden_dim, out_channels=hidden_dim, kernel_size=2, stride=2),
-                nn.Conv2d(in_channels=hidden_dim, out_channels=hidden_dim, kernel_size=2, stride=2),
-            ]
-        )
-
-    def repatch(self, x: torch.Tensor, idx: int):
-        x = x.permute(0, 2, 1).view(-1, self.hidden_dim, self.scale[idx][0], self.scale[idx][1])
-        x = self.conv_proj[idx](x)
-        x = x.view(-1, self.hidden_dim, self.scale[idx + 1][0] * self.scale[idx + 1][1]).permute(0, 2, 1)
-        return x
-
-    def forward(self, x: torch.Tensor):
-        x1 = self.encoder_layer_1(x)
-        x = self.repatch(x1, 0)
-        x2 = self.encoder_layer_2(x)
-        x = self.repatch(x2, 1)
-        x3 = self.encoder_layer_3(x)
-        return x1, x2, x3
 
 
 class ViT_MultiScale(nn.Module):
@@ -90,11 +65,11 @@ class ViT_MultiScale(nn.Module):
         else:
             self.pos_embedding = 0
 
-        scale = list()
-        for i in range(3):
-            scale.append((self.patch_height // (2**i), self.patch_width // (2**i)))
-
-        self.encoder = Encoder(num_heads, hidden_dim, mlp_dim, scale)
+        self.encoder_layer_1 = EncoderBlock(num_heads, hidden_dim, mlp_dim)
+        self.encoder_layer_2 = EncoderBlock(num_heads, hidden_dim, mlp_dim)
+        self.encoder_layer_3 = EncoderBlock(num_heads, hidden_dim, mlp_dim)
+        self.repatch1 = Repatch(hidden_dim, hidden_dim)
+        self.repatch2 = Repatch(hidden_dim, hidden_dim)
 
     def forward(self, x: torch.Tensor):
         x = self.conv_proj(x)
@@ -103,7 +78,16 @@ class ViT_MultiScale(nn.Module):
 
         x = x + self.pos_embedding
 
-        x1, x2, x3 = self.encoder(x)
+        x1 = self.encoder_layer_1(x)
+        x1 = x1.permute(0, 2, 1).reshape(-1, self.hidden_dim, self.patch_height, self.patch_width)
+
+        x = self.repatch1(x1)
+        x2 = self.encoder_layer_2(x)
+        x2 = x2.permute(0, 2, 1).reshape(-1, self.hidden_dim, self.patch_height // 2, self.patch_width // 2)
+
+        x = self.repatch2(x2)
+        x3 = self.encoder_layer_3(x)
+        x3 = x3.permute(0, 2, 1).reshape(-1, self.hidden_dim, self.patch_height // 4, self.patch_width // 4)
         return [x1, x2, x3]
 
 
@@ -132,7 +116,8 @@ class ViT_torch(VisionTransformer_torch):
             self.attention_dropout,
             self.norm_layer,
         )
-        self.seq_length = seq_length
+        self.feat_size = image_size // patch_size
+        self.hidden_dim = hidden_dim
         self.heads = None
 
         if not pos_embedding:
@@ -152,7 +137,10 @@ class ViT_torch(VisionTransformer_torch):
     def forward(self, x: torch.Tensor):
         x = self._process_input(x)
         x = self.encoder(x)
-        return list(self.outputs.values())
+        x1 = self.outputs["encoder_layer_0"].permute(0, 2, 1).reshape(-1, self.hidden_dim, self.feat_size, self.feat_size)
+        x2 = self.outputs["encoder_layer_1"].permute(0, 2, 1).reshape(-1, self.hidden_dim, self.feat_size, self.feat_size)
+        x3 = self.outputs["encoder_layer_2"].permute(0, 2, 1).reshape(-1, self.hidden_dim, self.feat_size, self.feat_size)
+        return [x1, x2, x3]
 
 
 def test_vit_multiscale():
