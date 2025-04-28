@@ -1,12 +1,6 @@
-__pycache__/
+**/__pycache__/
 Videvo/
+runs/
 
 models/*
 !models/models_save_path
-
-content.png
-style.png
-stylized.png
-attention_0.png
-attention_1.png
-attention_2.png
