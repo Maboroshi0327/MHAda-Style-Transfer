@@ -2,7 +2,14 @@ import torch
 import torch.nn as nn
 from torchvision.models import vgg19
 
-from utilities import imageNet1k_normalize
+
+def imageNet1k_normalize(batch: torch.Tensor):
+    # normalize using imagenet mean and std
+    batch = batch.float()
+    mean = batch.new_tensor([0.485, 0.456, 0.406]).view(-1, 1, 1).to(batch.device)
+    std = batch.new_tensor([0.229, 0.224, 0.225]).view(-1, 1, 1).to(batch.device)
+    normalized_batch = (batch / 255.0 - mean) / std
+    return normalized_batch
 
 
 class VGG19(nn.Module):
@@ -63,10 +70,38 @@ class VGG19(nn.Module):
         return features
 
 
+class VGG19_Classifier(nn.Module):
+    def __init__(self):
+        super().__init__()
+        vgg = vgg19(weights="VGG19_Weights.IMAGENET1K_V1")
+        self.features = nn.Sequential()
+        self.avgpool = vgg.avgpool
+        self.classifier = vgg.classifier
+
+        for x in range(30, 37):
+            self.features.add_module(str(x), vgg.features[x])
+
+        # Freeze all VGG parameters by setting requires_grad to False
+        for param in self.parameters():
+            param.requires_grad = False
+
+    def forward(self, x):
+        x = self.features(x)
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = self.classifier(x)
+        return x
+
+
 if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = VGG19().to(device)
-    x = torch.randn(1, 3, 256, 256).to(device)
+    x = torch.randn(4, 3, 256, 256).to(device)
     features = model(x)
     for key, value in features.items():
         print(key, value.shape)
+
+    model = VGG19_Classifier().to(device)
+    x = features["relu5_1"]
+    x = model(x)
+    print(x.shape)
