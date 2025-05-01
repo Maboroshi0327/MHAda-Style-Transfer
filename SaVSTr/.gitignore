@@ -4,3 +4,6 @@ runs/
 
 models/*
 !models/models_save_path
+
+results/*
+!results/visualize_output_path

@@ -2,6 +2,7 @@ import torch
 from torch.nn import functional as F
 from torch.utils.data import Dataset
 from torchvision.datasets import ImageFolder
+from torchvision.models.optical_flow import raft_large
 
 import os
 import random
@@ -10,7 +11,7 @@ from tqdm import tqdm
 from typing import Tuple, Union
 
 from flowlib import read
-from utilities import toTensor255, toTensor, toPil, toTensorCrop, list_files, flow_warp_mask
+from utilities import toTensor255, toTensor, toPil, toTensorCrop, raftTransforms, list_files, list_folders, flow_warp_mask
 
 
 def coco(path="../datasets/coco", size_crop: tuple = (256, 256)):
@@ -27,23 +28,6 @@ def wikiArt(path="../datasets/WikiArt", size_crop: tuple = (256, 256)):
     """
     dataset = ImageFolder(root=path, transform=toTensorCrop(size_crop=size_crop))
     return dataset
-
-
-class WikiArt(Dataset):
-    def __init__(self, image_size: tuple = (256, 256), path="../datasets/WikiArt", length=None):
-        self.wikiart = wikiArt(path, image_size)
-        self.wikiart_len = len(self.wikiart)
-        if length is not None:
-            self.length = length
-        else:
-            self.length = self.wikiart_len
-
-    def __len__(self):
-        return self.length
-
-    def __getitem__(self, idx):
-        wikiart_idx = random.randint(0, self.wikiart_len - 1)
-        return self.wikiart[wikiart_idx][0]
 
 
 class CocoWikiArt(Dataset):
@@ -83,6 +67,55 @@ class ImageNet1k(Dataset):
         label = self.dataset[idx][1]
         one_hot_label = F.one_hot(torch.tensor(label), num_classes=1000).float()
         return self.dataset[idx][0], one_hot_label
+
+
+class Sintel(Dataset):
+    def __init__(self, image_size: tuple = (256, 512), path="../datasets/MPI-Sintel-complete", device: str = "cuda"):
+        path = os.path.join(path, "training/final")
+        assert os.path.exists(path), f"Path {path} does not exist."
+
+        self.path = path
+        self.device = device
+        self.image_size = image_size
+        self.resolution = (image_size[1], image_size[0])
+
+        self.frame = list()
+        for folder in list_folders(path):
+            files = list_files(folder)
+            for i in range(len(files) - 1):
+                self.frame.append(files[i : i + 2])
+
+        self.length = len(self.frame)
+
+        self.raft = raft_large(weights="Raft_Large_Weights.C_T_SKHT_V2").to(device)
+        self.raft = self.raft.eval()
+
+    def __len__(self):
+        return self.length
+
+    def __getitem__(self, idx: int):
+        """
+        idx -> Index of the image pair, optical flow and mask to be returned.
+        """
+        with torch.no_grad():
+            # read image
+            img1 = Image.open(self.frame[idx][0]).convert("RGB").resize(self.resolution, Image.BILINEAR)
+            img2 = Image.open(self.frame[idx][1]).convert("RGB").resize(self.resolution, Image.BILINEAR)
+            img1 = toTensor255(img1).to(self.device)
+            img2 = toTensor255(img2).to(self.device)
+
+            # Calculate optical flow
+            img1_batch = img1.unsqueeze(0)
+            img2_batch = img2.unsqueeze(0)
+            img1_batch = raftTransforms(img1_batch)
+            img2_batch = raftTransforms(img2_batch)
+            flow_into_future = self.raft(img1_batch, img2_batch)[-1].squeeze(0)
+            flow_into_past = self.raft(img2_batch, img1_batch)[-1].squeeze(0)
+
+            # create mask
+            mask = flow_warp_mask(flow_into_future, flow_into_past)
+
+        return img1, img2, flow_into_past, mask
 
 
 class FlyingThings3D(Dataset):
@@ -329,39 +362,40 @@ class FlyingThings3D_Monkaa(Dataset):
             return self.flyingthings3d[idx - len(self.monkaa)]
 
 
-class FlyingThings3D_Monkaa_Coco_WikiArt(Dataset):
+class FlyingThings3D_Monkaa_WikiArt(Dataset):
     def __init__(self, image_size1: tuple = (256, 256), image_size2: tuple = (256, 512), path="../datasets"):
-        self.coco = coco(os.path.join(path, "coco"), image_size1)
         self.wikiart = wikiArt(os.path.join(path, "WikiArt"), image_size1)
-        self.flyingthings3d_monkaa = FlyingThings3D_Monkaa(os.path.join(path, "SceneFlowDatasets"), resolution=(image_size2[1], image_size2[0]))
-        self.coco_len = len(self.coco)
         self.wikiart_len = len(self.wikiart)
-        self.flyingthings3d_monkaa_len = len(self.flyingthings3d_monkaa)
 
-        self.length = self.flyingthings3d_monkaa_len
+        self.flyingthings3d_monkaa = FlyingThings3D_Monkaa(os.path.join(path, "SceneFlowDatasets"), resolution=(image_size2[1], image_size2[0]))
+        self.length = len(self.flyingthings3d_monkaa)
 
     def __len__(self):
         return self.length
 
     def __getitem__(self, idx) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Tuple[torch.Tensor, ...]]:
-        coco_idx = random.randint(0, self.coco_len - 1)
         wikiart_idx = random.randint(0, self.wikiart_len - 1)
 
         return (
-            self.coco[coco_idx][0],
             self.wikiart[wikiart_idx][0],
             *self.flyingthings3d_monkaa[idx],
         )
 
 
 if __name__ == "__main__":
-    dataset = CocoWikiArt()
-    c, s = dataset[123]
-    print("CocoWikiArt dataset")
-    print("dataset length:", len(dataset))
+    import cv2
+    from utilities import visualize_flow
 
-    from utilities import toPil
-
-    toPil(c.byte()).save("coco.png")
-    toPil(s.byte()).save("wikiart.png")
-    print("Saved coco.png and wikiart.png")
+    torch.multiprocessing.set_start_method("spawn", force=True)
+    dataset = Sintel()
+    # dataset = FlyingThings3D_Monkaa(path="../datasets/SceneFlowDatasets")
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True, num_workers=4, prefetch_factor=2)
+    batch_iterator = tqdm(dataloader, leave=True)
+    for i, (img1, img2, flow_into_past, mask) in enumerate(batch_iterator):
+        mask *= 255.0
+        toPil(img1[0].byte()).save("img1.png")
+        toPil(img2[0].byte()).save("img2.png")
+        toPil(mask[0].byte()).save("mask.png")
+        rgb = visualize_flow(flow_into_past.squeeze(0))
+        cv2.imwrite("flow.png", rgb)
+        exit()

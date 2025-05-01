@@ -36,8 +36,7 @@ RUN apt update && apt install -y \
 
 # Install Python dependencies
 WORKDIR /root/miniconda3/bin
-RUN ./pip install scipy==1.15.1 opencv-contrib-python==4.11.0.86 seaborn==0.13.2 \
-    tensorboardX==2.6.2.2 setproctitle==1.3.5 colorama==0.4.6 imageio==2.37.0
+RUN ./pip install scipy==1.15.1 opencv-contrib-python==4.11.0.86 seaborn==0.13.2 imageio==2.37.0 imageio-ffmpeg==0.6.0
 
 # Create directories
 RUN mkdir -p /root/project \

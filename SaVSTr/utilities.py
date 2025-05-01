@@ -16,8 +16,14 @@ toTensor255 = transforms.Compose(
 )
 toTensor = transforms.ToTensor()
 toPil = transforms.ToPILImage()
-gaussianBlur = transforms.GaussianBlur(kernel_size=3, sigma=1.0)
-
+raftTransforms = transforms.Compose(
+    [
+        # min–max → [0,1]
+        transforms.Lambda(lambda x: x.div(255.0)),
+        # map [0, 1] into [-1, 1]
+        transforms.Normalize(mean=0.5, std=0.5),
+    ]
+)
 
 def toTensorCrop(size_resize: tuple = (512, 512), size_crop: tuple = (256, 256)):
     """
@@ -143,3 +149,17 @@ def flow_warp_mask(flo01, flo10, padding_mode="zeros", threshold=2):
     mask = mask.float()
 
     return mask
+
+
+def visualize_flow(flow):
+    """
+    flow: (2, H, W)
+    """
+    hsv = np.zeros((flow.shape[1], flow.shape[2], 3), dtype=np.uint8)
+    hsv[..., 1] = 255
+
+    mag, ang = cv2.cartToPolar(flow[0].cpu().detach().numpy(), flow[1].cpu().detach().numpy())
+    hsv[..., 0] = ang * 180 / np.pi / 2
+    hsv[..., 2] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
+    rgb = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+    return rgb

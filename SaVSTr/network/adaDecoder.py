@@ -267,7 +267,7 @@ class AdaAttnTransformerMultiHead(nn.Module):
             fcs = self.adaAttnHead2[i](fcs, fs[i], fcs)
 
         cs = self.decoder(fcs)
-        return cs
+        return fcs, cs
 
 
 def test_AdaFormer():

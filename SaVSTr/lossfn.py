@@ -1,5 +1,4 @@
 import torch
-import torch.nn as nn
 from torch.nn import functional as F
 
 from utilities import feature_down_sample, warp
@@ -48,11 +47,40 @@ def identity_loss_2(fcc, fc, fss, fs, loss_fn):
     return loss
 
 
-def temporal_loss(cs1, cs2, flow, mask, loss_fn):
+def output_level_temporal_loss(c1, c2, cs1, cs2, flow, mask, lossMatrix):
+    warped_c1 = warp(c1, flow)
+    warped_cs1 = warp(cs1, flow)
+
+    input_term = c2 - warped_c1
+    input_term = 0.2126 * input_term[:, 0] + 0.7152 * input_term[:, 1] + 0.0722 * input_term[:, 2]
+    input_term = input_term.unsqueeze(1).expand(-1, c2.shape[1], -1, -1)
+
+    output_term = cs2 - warped_cs1
+
     mask = mask.unsqueeze(1)
-    mask = mask.expand(-1, cs1.shape[1], -1, -1)
-    non_zero_count = mask.sum() + 1e-8
-    warped_style = warp(cs1, flow)
-    loss = mask * loss_fn(cs2, warped_style)
-    loss = loss.sum() / non_zero_count
+    mask = mask.expand(-1, c2.shape[1], -1, -1)
+
+    loss = torch.sum(mask * (lossMatrix(output_term, input_term)))
+    non_zero_count = torch.nonzero(mask).shape[0]
+    loss *= 1 / non_zero_count
+    return loss
+
+
+def feature_level_temporal_loss(f1, f2, flow, mask, lossMatrix):
+    # Warp feature maps
+    feature_flow = F.interpolate(flow, size=f1.shape[2:], mode="bilinear")
+    feature_flow[:, 0] *= float(f1.shape[3]) / flow.shape[3]
+    feature_flow[:, 1] *= float(f1.shape[2]) / flow.shape[2]
+    warped_f1 = warp(f1, feature_flow)
+
+    # Create feature mask
+    feature_mask = F.interpolate(mask.unsqueeze(1), size=f1.shape[2:], mode="bilinear").squeeze(1)
+    feature_mask = (feature_mask > 0).float()
+    feature_mask = feature_mask.unsqueeze(1)
+    feature_mask = feature_mask.expand(-1, f1.shape[1], -1, -1)
+
+    # Feature-Map-Level Temporal Loss
+    loss = torch.sum(feature_mask * lossMatrix(f2, warped_f1))
+    non_zero_count = torch.nonzero(feature_mask).shape[0]
+    loss *= 1 / non_zero_count
     return loss
