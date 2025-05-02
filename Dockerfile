@@ -16,16 +16,6 @@ WORKDIR /root/miniconda3/bin
 RUN ./conda install -y python=3.12 \
     && ./pip install torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cu124
 
-# Install CUDA
-WORKDIR /tmp
-RUN apt update && apt install -y build-essential libxml2 \
-    && wget https://developer.download.nvidia.com/compute/cuda/12.4.1/local_installers/cuda_12.4.1_550.54.15_linux.run \
-    && sh ./cuda_12.4.1_550.54.15_linux.run --silent --toolkit \
-    && rm ./cuda_12.4.1_550.54.15_linux.run
-ENV PATH=/usr/local/cuda/bin:${PATH}
-ENV LD_LIBRARY_PATH=""
-ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
-
 # Install dependencies
 RUN apt update && apt install -y \
     libgl1 \
@@ -35,7 +25,6 @@ RUN apt update && apt install -y \
     libxrender-dev
 
 # Install Python dependencies
-WORKDIR /root/miniconda3/bin
 RUN ./pip install scipy==1.15.1 opencv-contrib-python==4.11.0.86 seaborn==0.13.2 imageio==2.37.0 imageio-ffmpeg==0.6.0
 
 # Create directories
