@@ -102,12 +102,12 @@ def train():
             # Forward pass
             fc_vc = vit_c(content)
             fs_vs = vit_s(style)
-            cs = adaFormer(fc_vc, fs_vs)
+            _, cs = adaFormer(fc_vc, fs_vs)
 
             fc_vs = vit_s(content)
             fs_vc = vit_c(style)
-            cc = adaFormer(fc_vc, fc_vs)
-            ss = adaFormer(fs_vc, fs_vs)
+            _, cc = adaFormer(fc_vc, fc_vs)
+            _, ss = adaFormer(fs_vc, fs_vs)
 
             # VGG19 feature extractor
             vgg_fs = vgg19(style)
