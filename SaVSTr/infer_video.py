@@ -21,25 +21,21 @@ ADA_PATH = f"./models/AdaFormer_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
 VITC_PATH = f"./models/ViT_C_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
 VITS_PATH = f"./models/ViT_S_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
 
-# ADA_PATH = "./models/AdaFormer.pth"
-# VITC_PATH = "./models/ViT_C.pth"
-# VITS_PATH = "./models/ViT_S.pth"
-
 # VIDEO_PATH = "../datasets/Videvo/19.mp4"
 # VIDEO_PATH = "../datasets/Videvo/31.mp4"
 # VIDEO_PATH = "../datasets/Videvo/38.mp4"
 # VIDEO_PATH = "../datasets/Videvo/54.mp4"
-# VIDEO_PATH = "../datasets/Videvo/67.mp4"
-VIDEO_PATH = "../datasets/Videvo/70.mp4"
+VIDEO_PATH = "../datasets/Videvo/67.mp4"
+# VIDEO_PATH = "../datasets/Videvo/70.mp4"
 
 # STYLE_PATH = "./styles/Autoportrait.png"
 # STYLE_PATH = "./styles/Brushstrokes.png"
-STYLE_PATH = "./styles/Composition.png"
+# STYLE_PATH = "./styles/Composition.png"
 # STYLE_PATH = "./styles/Mosaic.png"
 # STYLE_PATH = "./styles/Sketch.png"
 # STYLE_PATH = "./styles/Tableau.png"
 # STYLE_PATH = "./styles/The-Scream.png"
-# STYLE_PATH = "./styles/Udnie.png"
+STYLE_PATH = "./styles/Udnie.png"
 
 IMAGE_SIZE1 = (256, 256)
 IMAGE_SIZE2 = (256, 512)
@@ -70,12 +66,16 @@ if __name__ == "__main__":
     with torch.no_grad():
         fs = vit_s(s)
 
-    # Temporarily store video frames
-    frames = []
+    # Load video
+    cap = cv2.VideoCapture(VIDEO_PATH)
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    print(f"FPS: {fps}")
 
+    # Temporarily store video frames
+    frames = list()
     prev_c = None
     prev_cs = None
-    cap = cv2.VideoCapture(VIDEO_PATH)
+
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -87,7 +87,7 @@ if __name__ == "__main__":
             c = c.unsqueeze(0).to(device)
 
             # Compare with previous frame
-            # if prev_c is not None:           
+            # if prev_c is not None:
             #     diff = torch.abs(c - prev_c)
             #     mask = diff.gt(DELTA).any(dim=1, keepdim=True)
             #     mask = mask.expand_as(c)
@@ -99,7 +99,7 @@ if __name__ == "__main__":
             cs = cs.clamp(0, 255)
 
             # Compare with previous output
-            # if prev_c is not None:
+            # if prev_cs is not None:
             #     diff = torch.abs(cs - prev_cs)
             #     mask = diff.gt(DELTA).any(dim=1, keepdim=True)
             #     mask = mask.expand_as(cs)
@@ -119,6 +119,6 @@ if __name__ == "__main__":
         if cv2.waitKey(1) & 0xFF == ord("q"):
             cv2.destroyAllWindows()
             break
-    
+
     # Save the output frames as a GIF
-    imageio.mimsave("output.mp4", frames, fps=30)
+    imageio.mimsave("output.mp4", frames, fps=fps)
