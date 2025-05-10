@@ -237,24 +237,14 @@ class AdaAttnTransformerMultiHead(nn.Module):
         super().__init__()
         self.num_layers = num_layers
 
-        self.adaAttnHead1 = nn.ModuleList(
+        self.adaAttnHead = nn.ModuleList(
             [
                 AdaAttnMultiHead(
                     qkv_dim=qkv_dim,
                     num_heads=num_heads,
                     activation=activation,
                 )
-                for _ in range(num_layers)
-            ]
-        )
-        self.adaAttnHead2 = nn.ModuleList(
-            [
-                AdaAttnMultiHead(
-                    qkv_dim=qkv_dim,
-                    num_heads=num_heads,
-                    activation=activation,
-                )
-                for _ in range(num_layers)
+                for _ in range(num_layers * 2)
             ]
         )
 
@@ -263,8 +253,8 @@ class AdaAttnTransformerMultiHead(nn.Module):
     def forward(self, fc: List[torch.Tensor], fs: List[torch.Tensor]) -> torch.Tensor:
         fcs = fc[0]
         for i in range(self.num_layers):
-            fcs = self.adaAttnHead1[i](fc[i], fs[i], fcs)
-            fcs = self.adaAttnHead2[i](fcs, fs[i], fcs)
+            fcs = self.adaAttnHead[2 * i](fc[i], fs[i], fcs)
+            fcs = self.adaAttnHead[2 * i + 1](fcs, fs[i], fcs)
 
         cs = self.decoder(fcs)
         return fcs, cs

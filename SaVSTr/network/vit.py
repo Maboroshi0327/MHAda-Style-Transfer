@@ -65,25 +65,18 @@ class EncoderBlock(nn.Module):
 
 
 class PosEmbedding(nn.Module):
-    def __init__(self, patch_size: int = 8, embed_dim: int = 512, base_grid_size: int = 32):
+    def __init__(self, patch_size: int = 8, embed_dim: int = 512, base_embed_size: int = 32):
         """
+        patch_size: size of the patches of the patch embedding
         embed_dim: dimension of each token
-        base_grid_size: resolution used to generate the initial coordinate grid
+        base_embed_size: resolution used to generate the initial learned positional embedding
         """
         super().__init__()
         self.patch_size = patch_size
         self.embed_dim = embed_dim
-        self.base_grid_size = base_grid_size
+        self.base_embed_size = base_embed_size
 
-        # Use a CNN to map 2D coordinates to the embed_dim dimension
-        self.conv = nn.Conv2d(2, embed_dim, kernel_size=3, padding=1)
-
-        # Pre-construct a fixed resolution coordinate grid with values ranging from -1 to 1
-        grid_x = torch.linspace(-1, 1, self.base_grid_size)
-        grid_y = torch.linspace(-1, 1, self.base_grid_size)
-        grid = torch.meshgrid(grid_x, grid_y, indexing="ij")
-        grid = torch.stack(grid, dim=0).unsqueeze(0)  # shape: (1, 2, base_grid_size, base_grid_size)
-        self.register_buffer("grid", grid)
+        self.pos_embed = nn.Parameter(torch.empty(1, embed_dim, base_embed_size, base_embed_size).normal_(std=0.02))
 
     def forward(self, x_shape: torch.Size) -> torch.Tensor:
         """
@@ -94,11 +87,11 @@ class PosEmbedding(nn.Module):
         out_h = h // self.patch_size
         out_w = w // self.patch_size
 
-        # Map 2D coordinates to embed_dim dimension using the CNN (grid is precomputed in __init__)
-        pos_embed = self.conv(self.grid)
-
         # Use bilinear interpolation to match the spatial dimensions of the input
-        pos_embed = F.interpolate(pos_embed, size=(out_h, out_w), mode="bilinear", align_corners=False)
+        if out_h != self.base_embed_size or out_w != self.base_embed_size:
+            pos_embed = F.interpolate(self.pos_embed, size=(out_h, out_w), mode="bilinear", align_corners=False)
+        else:
+            pos_embed = self.pos_embed
 
         # Expand to match the batch size
         pos_embed = pos_embed.expand(b, -1, -1, -1)
