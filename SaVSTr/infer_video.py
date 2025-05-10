@@ -15,11 +15,15 @@ from network import VisionTransformer, AdaAttnTransformerMultiHead
 # VITC_PATH = f"./models/ViT_C_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
 # VITS_PATH = f"./models/ViT_S_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
 
-MODEL_EPOCH = 40
+MODEL_EPOCH = 30
 BATCH_SIZE = 2
 ADA_PATH = f"./models/AdaFormer_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
 VITC_PATH = f"./models/ViT_C_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
 VITS_PATH = f"./models/ViT_S_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
+
+# ADA_PATH = "./models/AdaFormer.pth"
+# VITC_PATH = "./models/ViT_C.pth"
+# VITS_PATH = "./models/ViT_S.pth"
 
 # VIDEO_PATH = "../datasets/Videvo/19.mp4"
 # VIDEO_PATH = "../datasets/Videvo/31.mp4"
@@ -28,14 +32,17 @@ VITS_PATH = f"./models/ViT_S_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
 VIDEO_PATH = "../datasets/Videvo/67.mp4"
 # VIDEO_PATH = "../datasets/Videvo/70.mp4"
 
-# STYLE_PATH = "./styles/Autoportrait.png"
-# STYLE_PATH = "./styles/Brushstrokes.png"
-# STYLE_PATH = "./styles/Composition.png"
-# STYLE_PATH = "./styles/Mosaic.png"
-# STYLE_PATH = "./styles/Sketch.png"
-# STYLE_PATH = "./styles/Tableau.png"
-# STYLE_PATH = "./styles/The-Scream.png"
-STYLE_PATH = "./styles/Udnie.png"
+# STYLE_PATH = "./styles/Autoportrait.jpg"
+# STYLE_PATH = "./styles/Brushstrokes.jpg"
+# STYLE_PATH = "./styles/Composition.jpg"
+# STYLE_PATH = "./styles/Mosaic.jpg"
+# STYLE_PATH = "./styles/Sketch.jpg"
+# STYLE_PATH = "./styles/Tableau.jpg"
+# STYLE_PATH = "./styles/The-Scream.jpg"
+# STYLE_PATH = "./styles/Udnie.jpg"
+# STYLE_PATH = "./styles/Tableau.jpg"
+# STYLE_PATH = "./styles/Untitled.jpg"
+STYLE_PATH = "./styles/DominancePortfolioBlue.jpg"
 
 IMAGE_SIZE1 = (256, 256)
 IMAGE_SIZE2 = (256, 512)
@@ -53,9 +60,9 @@ if __name__ == "__main__":
     vit_c = VisionTransformer(num_layers=NUM_LAYERS, num_heads=NUM_HEADS, hidden_dim=HIDDEN_DIM, pos_embedding=True).to(device)
     vit_s = VisionTransformer(num_layers=NUM_LAYERS, num_heads=NUM_HEADS, hidden_dim=HIDDEN_DIM, pos_embedding=False).to(device)
     adaFormer = AdaAttnTransformerMultiHead(num_layers=NUM_LAYERS, num_heads=NUM_HEADS, qkv_dim=HIDDEN_DIM, activation=ACTIAVTION).to(device)
-    vit_c.load_state_dict(torch.load(VITC_PATH, weights_only=True), strict=True)
-    vit_s.load_state_dict(torch.load(VITS_PATH, weights_only=True), strict=True)
-    adaFormer.load_state_dict(torch.load(ADA_PATH, weights_only=True), strict=True)
+    vit_c.load_state_dict(torch.load(VITC_PATH, map_location=device, weights_only=True), strict=True)
+    vit_s.load_state_dict(torch.load(VITS_PATH, map_location=device, weights_only=True), strict=True)
+    adaFormer.load_state_dict(torch.load(ADA_PATH, map_location=device, weights_only=True), strict=True)
     vit_c.eval()
     vit_s.eval()
     adaFormer.eval()
@@ -121,4 +128,4 @@ if __name__ == "__main__":
             break
 
     # Save the output frames as a GIF
-    imageio.mimsave("output.mp4", frames, fps=fps)
+    # imageio.mimsave("output.mp4", frames, fps=fps)

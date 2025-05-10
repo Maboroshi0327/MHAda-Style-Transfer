@@ -44,7 +44,7 @@ def infer(vit_c, vit_s, adaFormer, content_path, style_path):
     with torch.no_grad():
         fc = vit_c(c)
         fs = vit_s(s)
-        cs = adaFormer(fc, fs)
+        _, cs = adaFormer(fc, fs)
         cs = cs.clamp(0, 255)
 
     return c, s, cs
@@ -73,10 +73,10 @@ if __name__ == "__main__":
             save_path = f"./results/content_{i}_style_{j}"
             mkdir(save_path, delete_existing_files=True)
 
-            # # Infer the images
+            # Infer the images
             c, s, cs = infer(vit_c, vit_s, adaFormer, content_path, style_path)
 
-            # # Save the results
+            # Save the results
             content_save_path = os.path.join(save_path, "content.png")
             style_save_path = os.path.join(save_path, "style.png")
             stylized_save_path = os.path.join(save_path, "stylized.png")
