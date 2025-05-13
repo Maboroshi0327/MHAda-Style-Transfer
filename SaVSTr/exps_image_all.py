@@ -6,13 +6,12 @@ import argparse
 import numpy as np
 from PIL import Image
 
-from utilities import toTensor255, toPil
-from utilities import list_files, mkdir
+from utilities import toTensor255, toPil, list_files, mkdir
 from network import VisionTransformer, AdaAttnTransformerMultiHead
 from eval import lpips_loss, ssim_loss, kl_loss, gram_loss, nth_order_moment, uniformity, average_entropy
 
 
-IMAGE_SIZE = (256, 256)
+IMAGE_SIZE = (512, 512)
 NUM_LAYERS = 3
 NUM_HEADS = 8
 HIDDEN_DIM = 512
@@ -25,29 +24,10 @@ VITC_PATH = f"./models/ViT_C_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
 VITS_PATH = f"./models/ViT_S_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
 
 opt = argparse.Namespace(
-    path0="./results/stylized.png",
-    path1="./results/style.png",
+    path0="./results/stylized.jpg",
+    path1="./results/style.jpg",
     device="cuda",
 )
-
-
-def infer(vit_c, vit_s, adaFormer, content_path, style_path):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    # Load images
-    c = Image.open(content_path).convert("RGB").resize((IMAGE_SIZE[1], IMAGE_SIZE[0]), Image.BILINEAR)
-    c = toTensor255(c).unsqueeze(0).to(device)
-    s = Image.open(style_path).convert("RGB").resize((IMAGE_SIZE[1], IMAGE_SIZE[0]), Image.BILINEAR)
-    s = toTensor255(s).unsqueeze(0).to(device)
-
-    # Model inference
-    with torch.no_grad():
-        fc = vit_c(c)
-        fs = vit_s(s)
-        _, cs = adaFormer(fc, fs)
-        cs = cs.clamp(0, 255)
-
-    return c, s, cs
 
 
 if __name__ == "__main__":
@@ -64,17 +44,35 @@ if __name__ == "__main__":
     vit_s.eval()
     adaFormer.eval()
 
+    # Load images
+    print("Loading images...")
+    contents = list()
+    styles = list()
+    for content_path in list_files("./contents"):
+        c = Image.open(content_path).convert("RGB").resize((IMAGE_SIZE[1], IMAGE_SIZE[0]), Image.BILINEAR)
+        c = toTensor255(c).unsqueeze(0).to(device)
+        contents.append([c, content_path])
+
+    for style_path in list_files("./styles"):
+        s = Image.open(style_path).convert("RGB").resize((IMAGE_SIZE[1], IMAGE_SIZE[0]), Image.BILINEAR)
+        s = toTensor255(s).unsqueeze(0).to(device)
+        styles.append([s, style_path])
+
     result = list()
-    for i, content_path in enumerate(list_files("./contents")):
-        for j, style_path in enumerate(list_files("./styles")):
-            print(f"Processing content {i} and style {j}...")
+    for i, (c, content_path) in enumerate(contents):
+        for j, (s, style_path) in enumerate(styles):
+            print(f"Processing content {i + 1} and style {j + 1}...")
+
+            # Model inference
+            with torch.no_grad():
+                fc = vit_c(c)
+                fs = vit_s(s)
+                _, cs = adaFormer(fc, fs)
+                cs = cs.clamp(0, 255)
 
             # Create output directory
-            save_path = f"./results/content_{i}_style_{j}"
+            save_path = f"./results/content_{i + 1}_style_{j + 1}"
             mkdir(save_path, delete_existing_files=True)
-
-            # Infer the images
-            c, s, cs = infer(vit_c, vit_s, adaFormer, content_path, style_path)
 
             # Save the results
             content_save_path = os.path.join(save_path, "content.png")
@@ -102,8 +100,8 @@ if __name__ == "__main__":
             # Append the results
             result.append(
                 {
-                    "content_idx": i,
-                    "style_idx": j,
+                    "content": content_path,
+                    "style": style_path,
                     "lpips_content": lpips_content,
                     "ssim_content": ssim_content,
                     "lpips_style": lpips_style,
@@ -120,8 +118,8 @@ if __name__ == "__main__":
     avg_result = np.mean([list(row.values())[2:] for row in result], axis=0)
     result.append(
         {
-            "content_idx": "average",
-            "style_idx": "average",
+            "content": "average",
+            "style": "average",
             "lpips_content": avg_result[0],
             "ssim_content": avg_result[1],
             "lpips_style": avg_result[2],
@@ -135,10 +133,10 @@ if __name__ == "__main__":
     )
 
     # Save the results to a CSV file
-    with open("results.csv", "w", newline="") as csvfile:
+    with open("./results/results.csv", "w", newline="") as csvfile:
         fieldnames = [
-            "content_idx",
-            "style_idx",
+            "content",
+            "style",
             "lpips_content",
             "ssim_content",
             "lpips_style",
@@ -153,4 +151,4 @@ if __name__ == "__main__":
         writer.writeheader()
         for row in result:
             writer.writerow(row)
-    print("Results saved to results.csv")
+    print("Results saved to ./results/results.csv")

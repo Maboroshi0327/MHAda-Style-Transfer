@@ -14,7 +14,9 @@ from utilities import cv2_to_tensor
 
 def lpips_loss(opt, no_print=False):
     # Initializing the model
-    loss_fn = lpips.LPIPS(net="vgg").to(opt.device)
+    if not hasattr(lpips_loss, "loss_fn"):
+        lpips_loss.loss_fn = lpips.LPIPS(net="vgg").to(opt.device)
+    loss_fn = lpips_loss.loss_fn
 
     # Load images
     img0 = lpips.im2tensor(lpips.load_image(opt.path0)).to(opt.device)
@@ -78,8 +80,10 @@ def gram_loss(opt, no_print=False):
     s = cv2_to_tensor(s).to(opt.device)
     s = s.unsqueeze(0).to(opt.device)
 
-    vgg19 = VGG19().to(opt.device)
-    vgg19.eval()
+    if not hasattr(gram_loss, "vgg19"):
+        gram_loss.vgg19 = VGG19().to(opt.device)
+        gram_loss.vgg19.eval()
+    vgg19 = gram_loss.vgg19
 
     loss = 0.0
     for i in [1, 2, 3, 4, 5]:
@@ -221,7 +225,9 @@ def ssim_loss(opt, no_print=False):
     s = cv2.cvtColor(s, cv2.COLOR_BGR2RGB)
     s = cv2_to_tensor(s).unsqueeze(0).to(opt.device)
 
-    ssim_metric = SSIMMetric(window_size=11, channel=3, sigma=1.5, reduction="mean").to(opt.device)
+    if not hasattr(ssim_loss, "metric"):
+        ssim_loss.metric = SSIMMetric(window_size=11, channel=3, sigma=1.5, reduction="mean").to(opt.device)
+    ssim_metric = ssim_loss.metric
     ssim = ssim_metric(img, s)
 
     if not no_print:
