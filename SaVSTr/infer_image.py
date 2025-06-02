@@ -23,8 +23,19 @@ CONTENT_IDX = 66666
 CONTENT_PATH = None
 STYLE_PATH = None
 
-CONTENT_PATH = "./contents/Bair.png"
-STYLE_PATH = "./styles/Installation-at-ACE-Gallery-New-York.jpg"
+CONTENT_PATH = "./contents/Avril-Lavigne.jpg"
+# CONTENT_PATH = "./contents/Bair.jpg"
+# CONTENT_PATH = "./contents/Bird.jpg"
+# CONTENT_PATH = "./contents/Blossom.jpg"
+# CONTENT_PATH = "./contents/Streets.jpg"
+
+STYLE_PATH = "./styles/Another-colorful-world.jpg"
+# STYLE_PATH = "./styles/Blue-3.jpg"
+# STYLE_PATH = "./styles/Composition.jpg"
+# STYLE_PATH = "./styles/St-Paul-s-Manhattan.jpg"
+# STYLE_PATH = "./styles/The-Scream.jpg"
+# STYLE_PATH = "./styles/TheGreatWave-off-Kanagawa.jpg"
+# STYLE_PATH = "./styles/Untitled-1964.jpg"
 
 IMAGE_SIZE = (512, 512)
 NUM_LAYERS = 3

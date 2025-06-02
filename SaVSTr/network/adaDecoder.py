@@ -250,7 +250,15 @@ class AdaAttnTransformerMultiHead(nn.Module):
 
         self.decoder = Decoder()
 
-    def forward(self, fc: List[torch.Tensor], fs: List[torch.Tensor]) -> torch.Tensor:
+    def forward(self, *args):
+        # Support two calling conventions:
+        #   1) model(fc_list, fs_list)
+        #   2) model((fc_list, fs_list))   ← ptflops passes arguments this way
+        if len(args) == 1:
+            fc, fs = args[0]
+        else:
+            fc, fs = args
+
         fcs = fc[0]
         for i in range(self.num_layers):
             fcs = self.adaAttnHead[2 * i](fc[i], fs[i], fcs)
