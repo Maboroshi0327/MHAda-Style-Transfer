@@ -82,7 +82,7 @@ if __name__ == "__main__":
     with torch.no_grad():
         fc = vit_c(c)
         fs = vit_s(s)
-        _, cs = adaFormer(fc, fs)
+        fcs, cs = adaFormer(fc, fs)
         cs = cs.clamp(0, 255)
         print(cs[0, 0].min(), cs[0, 0].max())
         print(cs[0, 1].min(), cs[0, 1].max())
@@ -119,3 +119,66 @@ if __name__ == "__main__":
         plt.xlabel("Token")
         plt.ylabel("Token")
         plt.savefig(f"./results/attention_s_{idx}.png")
+
+    # Plot AdaFormer fcs features per head
+    # fcs: [B, C, H, W], C = HIDDEN_DIM, heads = NUM_HEADS
+    b, C, H, W = fcs.shape
+    head_dim = C // NUM_HEADS
+    fcs_np = fcs[0].detach().cpu().numpy()  # drop batch dim
+
+    for head in range(NUM_HEADS):
+        start = head * head_dim
+        end = (head + 1) * head_dim
+        # select channels for this head and average
+        head_feat = fcs_np[start:end, :, :]  # (head_dim, H, W)
+        heatmap = head_feat.mean(axis=0)  # (H, W)
+
+        plt.figure(figsize=(8, 8))
+        sns.heatmap(heatmap, square=True, cmap="viridis")
+        plt.title(f"AdaFormer fcs - Head {head + 1}")
+        plt.xlabel("Token")
+        plt.ylabel("Token")
+        plt.savefig(f"./results/fcs_head_{head + 1}.png")
+        plt.close()
+
+    # Plot fc features per head
+    # fc: [B, C, H, W], C = HIDDEN_DIM, heads = NUM_HEADS
+    b, C, H, W = fcs.shape
+    head_dim = C // NUM_HEADS
+    fc_np = fc[-1].detach().squeeze(0).cpu().numpy()  # drop batch dim
+
+    for head in range(NUM_HEADS):
+        start = head * head_dim
+        end = (head + 1) * head_dim
+        # select channels for this head and average
+        head_feat = fc_np[start:end, :, :]  # (head_dim, H, W)
+        heatmap = head_feat.mean(axis=0)  # (H, W)
+
+        plt.figure(figsize=(8, 8))
+        sns.heatmap(heatmap, square=True, cmap="viridis")
+        plt.title(f"ViT fc - Head {head + 1}")
+        plt.xlabel("Token")
+        plt.ylabel("Token")
+        plt.savefig(f"./results/fc_head_{head + 1}.png")
+        plt.close()
+
+    # Plot fs features per head
+    # fs: [B, C, H, W], C = HIDDEN_DIM, heads = NUM_HEADS
+    b, C, H, W = fcs.shape
+    head_dim = C // NUM_HEADS
+    fs_np = fs[-1].detach().squeeze(0).cpu().numpy()  # drop batch dim
+
+    for head in range(NUM_HEADS):
+        start = head * head_dim
+        end = (head + 1) * head_dim
+        # select channels for this head and average
+        head_feat = fs_np[start:end, :, :]  # (head_dim, H, W)
+        heatmap = head_feat.mean(axis=0)  # (H, W)
+
+        plt.figure(figsize=(8, 8))
+        sns.heatmap(heatmap, square=True, cmap="viridis")
+        plt.title(f"ViT fs - Head {head + 1}")
+        plt.xlabel("Token")
+        plt.ylabel("Token")
+        plt.savefig(f"./results/fs_head_{head + 1}.png")
+        plt.close()

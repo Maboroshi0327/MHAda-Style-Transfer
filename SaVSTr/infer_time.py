@@ -22,7 +22,7 @@ STYLE_PATH = "./styles/Another-colorful-world.jpg"
 
 IMAGE_SIZE = (512, 512)
 NUM_LAYERS = 3
-NUM_HEADS = 4
+NUM_HEADS = 8
 HIDDEN_DIM = 512
 ACTIAVTION = "softmax"
 
