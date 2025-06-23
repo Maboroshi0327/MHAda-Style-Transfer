@@ -1,5 +1,4 @@
 import torch
-
 from ptflops import get_model_complexity_info
 
 from network import VisionTransformer, AdaAttnTransformerMultiHead
@@ -10,11 +9,9 @@ NUM_HEADS = 8
 HIDDEN_DIM = 512
 ACTIAVTION = "softmax"
 
+
 def ada_input_constructor(resolution, device="cuda"):
-        return (
-            [torch.randn(1, *resolution).to(device) for _ in range(NUM_LAYERS)],
-            [torch.randn(1, *resolution).to(device) for _ in range(NUM_LAYERS)]
-        )
+    return ([torch.randn(1, *resolution).to(device) for _ in range(NUM_LAYERS)], [torch.randn(1, *resolution).to(device) for _ in range(NUM_LAYERS)])
 
 
 if __name__ == "__main__":
@@ -29,17 +26,17 @@ if __name__ == "__main__":
     adaFormer.eval()
 
     # Calculate FLOPs and Params
-    flops_c, params_c = get_model_complexity_info(vit_c, (3, 512, 512), as_strings=True, print_per_layer_stat=False)
+    flops_c, params_c = get_model_complexity_info(vit_c, (3, 256, 256), as_strings=True, print_per_layer_stat=False)
     print(f"FLOPs for ViT-C: {flops_c}", f"Parameters for ViT-C: {params_c}")
 
-    flops_s, params_s = get_model_complexity_info(vit_s, (3, 512, 512), as_strings=True, print_per_layer_stat=False)
+    flops_s, params_s = get_model_complexity_info(vit_s, (3, 256, 256), as_strings=True, print_per_layer_stat=False)
     print(f"FLOPs for ViT-S: {flops_s}", f"Parameters for ViT-S: {params_s}")
 
     flops_a, params_a = get_model_complexity_info(
         adaFormer,
-        (512, 64, 64),
+        (512, 32, 32),
         as_strings=True,
         print_per_layer_stat=False,
-        input_constructor=ada_input_constructor
+        input_constructor=ada_input_constructor,
     )
     print(f"FLOPs for AdaFormer: {flops_a}", f"Parameters for AdaFormer: {params_a}")
