@@ -24,9 +24,10 @@ VITC_PATH = f"./models/ViT_C_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
 VITS_PATH = f"./models/ViT_S_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
 
 CONTENT_STYLE_PAIR = [
-    ("./contents/Chair.jpg", "./styles/Brushstrokes.jpg"),
-    ("./contents/Brad-Pitt.jpg", "./styles/Sketch.jpg"),
-    ("./contents/Bird.jpg", "./styles/Tableau.jpg"),
+    ("./contents/Cornell.jpg", "./styles/Untitled-1964.jpg"),
+    ("./contents/RiverBoat.jpg", "./styles/Blue-3.jpg"),
+    ("./contents/Streets.jpg", "./styles/Composition.jpg"),
+    ("./contents/Tubingen.jpg", "./styles/Volga-Landscape.jpg"),
 ]
 
 opt = argparse.Namespace(
