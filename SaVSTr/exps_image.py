@@ -8,7 +8,7 @@ from PIL import Image
 
 from utilities import toTensor255, toPil, mkdir
 from network import VisionTransformer, AdaAttnTransformerMultiHead
-from eval import lpips_loss, ssim_loss, kl_loss, gram_loss, nth_order_moment, uniformity, average_entropy
+from eval import lpips_loss, ssim_loss, sifid, kl_loss, gram_loss, nth_order_moment, uniformity, average_entropy
 
 
 IMAGE_SIZE = (512, 512)
@@ -89,6 +89,7 @@ if __name__ == "__main__":
         opt.path1 = content_save_path
         lpips_content = lpips_loss(opt, no_print=True)
         ssim_content = ssim_loss(opt, no_print=True)
+        sifid_content = sifid(opt, no_print=True)
 
         opt.path1 = style_save_path
         lpips_style = lpips_loss(opt, no_print=True)
@@ -106,6 +107,7 @@ if __name__ == "__main__":
                 "style": style_path,
                 "lpips_content": lpips_content,
                 "ssim_content": ssim_content,
+                "sifid_content": sifid_content,
                 "lpips_style": lpips_style,
                 "ssim_style": ssim_style,
                 "kl": kl,
@@ -124,13 +126,14 @@ if __name__ == "__main__":
             "style": "average",
             "lpips_content": avg_result[0],
             "ssim_content": avg_result[1],
-            "lpips_style": avg_result[2],
-            "ssim_style": avg_result[3],
-            "kl": avg_result[4],
-            "gram": avg_result[5],
-            "moment": avg_result[6],
-            "uniformity": avg_result[7],
-            "entropy": avg_result[8],
+            "sifid_content": avg_result[2],
+            "lpips_style": avg_result[3],
+            "ssim_style": avg_result[4],
+            "kl": avg_result[5],
+            "gram": avg_result[6],
+            "moment": avg_result[7],
+            "uniformity": avg_result[8],
+            "entropy": avg_result[9],
         }
     )
 
@@ -141,6 +144,7 @@ if __name__ == "__main__":
             "style",
             "lpips_content",
             "ssim_content",
+            "sifid_content",
             "lpips_style",
             "ssim_style",
             "kl",

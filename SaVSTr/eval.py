@@ -1,11 +1,14 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
+from torchvision import transforms, models
 
 import cv2
+import argparse
 import numpy as np
 import scipy.stats
-import argparse
+from PIL import Image
+from scipy.linalg import sqrtm
 
 import lpips
 from network import VGG19
@@ -236,6 +239,103 @@ def ssim_loss(opt, no_print=False):
         return ssim.item()
 
 
+def sifid(opt, no_print=False):
+    """
+    Calculate Single Image Fréchet Inception Distance (SIFID)
+    Compare SIFID distance between two images
+    """
+    # 1. Load Inception Feature Extractor
+    if not hasattr(sifid, "feature_extractor"):
+        inception = models.inception_v3(weights="Inception_V3_Weights.IMAGENET1K_V1", aux_logits=True, transform_input=False)
+
+        # Create feature extractor that stops at Mixed_7c, skip AuxLogits
+        feature_layers = []
+        for name, module in inception.named_children():
+            if name == "AuxLogits":
+                # Skip AuxLogits layer
+                continue
+            feature_layers.append(module)
+            if name == "Mixed_7c":
+                break
+
+        sifid.feature_extractor = nn.Sequential(*feature_layers).to(opt.device).eval()
+    feature_extractor = sifid.feature_extractor
+
+    # 2. Image preprocessing
+    transform = transforms.Compose(
+        [
+            transforms.Resize((299, 299)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
+
+    def compute_stats(feat: torch.Tensor):
+        # feat: [1, C, H, W] -> [C, H*W]
+        C, H, W = feat.shape[1:]
+        x = feat.squeeze(0).view(C, -1)  # Keep on GPU
+        mu = x.mean(dim=1)
+        x_centered = x - mu[:, None]
+        cov = (x_centered @ x_centered.t()) / (H * W - 1)
+        return mu, cov
+
+    def frechet_distance_gpu(mu1, cov1, mu2, cov2, eps=1e-6):
+        # Calculate Fréchet distance on GPU
+        diff = mu1 - mu2
+        diff_norm = torch.sum(diff * diff)
+
+        # Calculate trace(cov1 + cov2)
+        trace_sum = torch.trace(cov1) + torch.trace(cov2)
+
+        # Calculate trace of 2 * sqrt(cov1 @ cov2)
+        # Use Cholesky decomposition for stable calculation
+        try:
+            # Try Cholesky decomposition
+            L1 = torch.linalg.cholesky(cov1 + eps * torch.eye(cov1.size(0), device=cov1.device))
+            L2 = torch.linalg.cholesky(cov2 + eps * torch.eye(cov2.size(0), device=cov2.device))
+
+            # Calculate L1 @ L2.T
+            M = L1 @ L2.t()
+
+            # Calculate trace of sqrt(M @ M.T)
+            # Use SVD to calculate sqrt
+            U, S, V = torch.svd(M)
+            sqrt_S = torch.sqrt(torch.clamp(S, min=eps))
+            trace_sqrt = torch.sum(sqrt_S)
+
+        except RuntimeError:
+            # If Cholesky decomposition fails, fall back to CPU calculation
+            mu1_np, mu2_np = mu1.cpu().numpy(), mu2.cpu().numpy()
+            cov1_np, cov2_np = cov1.cpu().numpy(), cov2.cpu().numpy()
+            covmean = sqrtm(cov1_np @ cov2_np)
+            if np.iscomplexobj(covmean):
+                covmean = covmean.real
+            trace_sqrt = torch.tensor(np.trace(covmean), device=mu1.device)
+
+        return diff_norm + trace_sum - 2 * trace_sqrt
+
+    # 3. Load and preprocess images
+    fake_img = transform(Image.open(opt.path0).convert("RGB")).unsqueeze(0).to(opt.device)  # stylized image
+    real_img = transform(Image.open(opt.path1).convert("RGB")).unsqueeze(0).to(opt.device)  # content/style image
+
+    # 4. Feature extraction
+    with torch.no_grad():
+        feat_r = feature_extractor(real_img)
+        feat_g = feature_extractor(fake_img)
+
+    # 5. Statistics calculation
+    mu_r, cov_r = compute_stats(feat_r)
+    mu_g, cov_g = compute_stats(feat_g)
+
+    # 6. Calculate distance
+    sifid_value = frechet_distance_gpu(mu_r, cov_r, mu_g, cov_g)
+
+    if not no_print:
+        print("SIFID: %f" % sifid_value.item())
+    else:
+        return sifid_value.item()
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         usage="eval.py [-h] [-m MODE] [-p0 PATH0] [-p1 PATH1] [-d DEVICE]",
@@ -261,3 +361,5 @@ if __name__ == "__main__":
         uniformity(opt)
     elif opt.mode == "entropy":
         average_entropy(opt)
+    elif opt.mode == "sifid":
+        sifid(opt)
