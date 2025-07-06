@@ -18,8 +18,7 @@ NUM_HEADS = 8
 HIDDEN_DIM = 512
 ACTIAVTION = "softmax"
 
-CONTENT_PATH = "./contents/Chair.jpg"
-STYLE_PATH = "./styles/Sketch.jpg"
+CONTENT_PATH = "./contents/Tubingen.jpg"
 
 
 def min_max_normalize(tensor):
@@ -48,9 +47,6 @@ vit_c.eval()
 # ---- 2. Preparation ----
 c = Image.open(CONTENT_PATH).convert("RGB").resize((IMAGE_SIZE[1], IMAGE_SIZE[0]), Image.BILINEAR)
 c = toTensor255(c).unsqueeze(0).to(device)
-s = Image.open(STYLE_PATH).convert("RGB").resize((IMAGE_SIZE[1], IMAGE_SIZE[0]), Image.BILINEAR)
-s = toTensor255(s).unsqueeze(0).to(device)
-
 # Extract target features from content and style images
 with torch.no_grad():
     fc = vit_c(c)
@@ -58,10 +54,48 @@ with torch.no_grad():
 
 
 # ---- 3. Progressive reconstruction ----
+num_iters = 6000
+
+for i in range(NUM_LAYERS):
+    recon = torch.randn_like(c, requires_grad=True, device=device)
+    optimizer = optim.Adam([recon], lr=1e-1)
+
+    for iter in range(1, num_iters + 1):
+        optimizer.zero_grad()
+
+        # Forward pass
+        fc = vit_c(recon)
+
+        # Loss calculation
+        layers = range(i + 1)
+        loss = sum(F.mse_loss(fc[l], target[l]) for l in layers)
+        loss.backward()
+        optimizer.step()
+
+        if iter % 50 == 0:
+            print(f"iter {iter:3d}  loss {loss.item():.4f}")
+            recon_temp = min_max_normalize_rgb(recon.detach())
+            toPil(recon_temp.squeeze(0).byte()).save(f"./results/reconstructed_vit_{i+1}.jpg")
+
+    # ---- 4. Save the reconstructed image ----
+    recon = min_max_normalize_rgb(recon.detach())
+    toPil(recon.squeeze(0).byte()).save(f"./results/reconstructed_vit_{i+1}.jpg")
+    print(f"Saved → results/reconstructed_vit_{i+1}.jpg")
+
+
+# ----5. For MHAda ----
+CONTENT_PATH = "./contents/Chair.jpg"
+c = Image.open(CONTENT_PATH).convert("RGB").resize((IMAGE_SIZE[1], IMAGE_SIZE[0]), Image.BILINEAR)
+c = toTensor255(c).unsqueeze(0).to(device)
+
+with torch.no_grad():
+    fc = vit_c(c)
+    target = fc
+
 recon = torch.randn_like(c, requires_grad=True, device=device)
 optimizer = optim.Adam([recon], lr=5e-1)
-num_iters = 2000
 
+num_iters = 2000
 for iter in range(1, num_iters + 1):
     optimizer.zero_grad()
 
@@ -76,9 +110,8 @@ for iter in range(1, num_iters + 1):
     if iter % 50 == 0:
         print(f"iter {iter:3d}  loss {loss.item():.4f}")
         recon_temp = min_max_normalize_rgb(recon.detach())
-        toPil(recon_temp.squeeze(0).byte()).save("./results/reconstructed_vit.jpg")
+        toPil(recon_temp.squeeze(0).byte()).save(f"./results/reconstructed_vit.jpg")
 
-# ---- 4. Save the reconstructed image ----
 recon = min_max_normalize_rgb(recon.detach())
-toPil(recon.squeeze(0).byte()).save("./results/reconstructed_vit.jpg")
+toPil(recon.squeeze(0).byte()).save(f"./results/reconstructed_vit.jpg")
 print(f"Saved → results/reconstructed_vit.jpg")
