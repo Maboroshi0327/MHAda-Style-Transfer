@@ -25,7 +25,9 @@ VITS_PATH = f"./models/ViT_S_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
 
 CONTENT_STYLE_PAIR = [
     ("./contents/Cornell.jpg", "./styles/Untitled-1964.jpg"),
+    ("./contents/Bird.jpg", "./styles/Sketch.jpg"),
     ("./contents/RiverBoat.jpg", "./styles/Blue-3.jpg"),
+    ("./contents/Sailboat.jpg", "./styles/Another-colorful-world.jpg"),
     ("./contents/Streets.jpg", "./styles/Composition.jpg"),
     ("./contents/Tubingen.jpg", "./styles/Volga-Landscape.jpg"),
 ]
@@ -94,6 +96,7 @@ if __name__ == "__main__":
         opt.path1 = style_save_path
         lpips_style = lpips_loss(opt, no_print=True)
         ssim_style = ssim_loss(opt, no_print=True)
+        sifid_style = sifid(opt, no_print=True)
         kl = kl_loss(opt, no_print=True)
         gram = gram_loss(opt, no_print=True)
         moment = nth_order_moment(opt, no_print=True)
@@ -110,6 +113,7 @@ if __name__ == "__main__":
                 "sifid_content": sifid_content,
                 "lpips_style": lpips_style,
                 "ssim_style": ssim_style,
+                "sifid_style": sifid_style,
                 "kl": kl,
                 "gram": gram,
                 "moment": moment,
@@ -129,11 +133,12 @@ if __name__ == "__main__":
             "sifid_content": avg_result[2],
             "lpips_style": avg_result[3],
             "ssim_style": avg_result[4],
-            "kl": avg_result[5],
-            "gram": avg_result[6],
-            "moment": avg_result[7],
-            "uniformity": avg_result[8],
-            "entropy": avg_result[9],
+            "sifid_style": avg_result[5],
+            "kl": avg_result[6],
+            "gram": avg_result[7],
+            "moment": avg_result[8],
+            "uniformity": avg_result[9],
+            "entropy": avg_result[10],
         }
     )
 
@@ -147,6 +152,7 @@ if __name__ == "__main__":
             "sifid_content",
             "lpips_style",
             "ssim_style",
+            "sifid_style",
             "kl",
             "gram",
             "moment",

@@ -8,11 +8,12 @@ import argparse
 import numpy as np
 import scipy.stats
 from PIL import Image
-from scipy.linalg import sqrtm
+from scipy import linalg
 
 import lpips
 from network import VGG19
 from utilities import cv2_to_tensor
+from SIFID import InceptionV3, calculate_activation_statistics, calculate_frechet_distance
 
 
 def lpips_loss(opt, no_print=False):
@@ -239,101 +240,69 @@ def ssim_loss(opt, no_print=False):
         return ssim.item()
 
 
+def calculate_sifid_given_paths(path0, path1, batch_size=1, cuda=True, dims=2048):
+    """
+    Calculates the SIFID of two paths
+    dims: 64, 192, 768, or 2048
+    """
+
+    block_idx = InceptionV3.BLOCK_INDEX_BY_DIM[dims]
+
+    model = InceptionV3([block_idx])
+    if cuda:
+        model.cuda()
+
+    m1, s1 = calculate_activation_statistics([path0], model, batch_size, dims, cuda)
+    m2, s2 = calculate_activation_statistics([path1], model, batch_size, dims, cuda)
+    fid_values = calculate_frechet_distance(m1, s1, m2, s2)
+    return fid_values
+
+
 def sifid(opt, no_print=False):
     """
     Calculate Single Image Fréchet Inception Distance (SIFID)
     Compare SIFID distance between two images
+    Based on: https://github.com/tamarott/SinGAN/tree/master/SIFID
     """
-    # 1. Load Inception Feature Extractor
-    if not hasattr(sifid, "feature_extractor"):
-        inception = models.inception_v3(weights="Inception_V3_Weights.IMAGENET1K_V1", aux_logits=True, transform_input=False)
 
-        # Create feature extractor that stops at Mixed_7c, skip AuxLogits
-        feature_layers = []
-        for name, module in inception.named_children():
-            if name == "AuxLogits":
-                # Skip AuxLogits layer
-                continue
-            feature_layers.append(module)
-            if name == "Mixed_7c":
-                break
-
-        sifid.feature_extractor = nn.Sequential(*feature_layers).to(opt.device).eval()
-    feature_extractor = sifid.feature_extractor
-
-    # 2. Image preprocessing
-    transform = transforms.Compose(
-        [
-            transforms.Resize((299, 299)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ]
-    )
-
-    def compute_stats(feat: torch.Tensor):
-        # feat: [1, C, H, W] -> [C, H*W]
-        C, H, W = feat.shape[1:]
-        x = feat.squeeze(0).view(C, -1)  # Keep on GPU
-        mu = x.mean(dim=1)
-        x_centered = x - mu[:, None]
-        cov = (x_centered @ x_centered.t()) / (H * W - 1)
-        return mu, cov
-
-    def frechet_distance_gpu(mu1, cov1, mu2, cov2, eps=1e-6):
-        # Calculate Fréchet distance on GPU
-        diff = mu1 - mu2
-        diff_norm = torch.sum(diff * diff)
-
-        # Calculate trace(cov1 + cov2)
-        trace_sum = torch.trace(cov1) + torch.trace(cov2)
-
-        # Calculate trace of 2 * sqrt(cov1 @ cov2)
-        # Use Cholesky decomposition for stable calculation
-        try:
-            # Try Cholesky decomposition
-            L1 = torch.linalg.cholesky(cov1 + eps * torch.eye(cov1.size(0), device=cov1.device))
-            L2 = torch.linalg.cholesky(cov2 + eps * torch.eye(cov2.size(0), device=cov2.device))
-
-            # Calculate L1 @ L2.T
-            M = L1 @ L2.t()
-
-            # Calculate trace of sqrt(M @ M.T)
-            # Use SVD to calculate sqrt
-            U, S, V = torch.svd(M)
-            sqrt_S = torch.sqrt(torch.clamp(S, min=eps))
-            trace_sqrt = torch.sum(sqrt_S)
-
-        except RuntimeError:
-            # If Cholesky decomposition fails, fall back to CPU calculation
-            mu1_np, mu2_np = mu1.cpu().numpy(), mu2.cpu().numpy()
-            cov1_np, cov2_np = cov1.cpu().numpy(), cov2.cpu().numpy()
-            covmean = sqrtm(cov1_np @ cov2_np)
-            if np.iscomplexobj(covmean):
-                covmean = covmean.real
-            trace_sqrt = torch.tensor(np.trace(covmean), device=mu1.device)
-
-        return diff_norm + trace_sum - 2 * trace_sqrt
-
-    # 3. Load and preprocess images
-    fake_img = transform(Image.open(opt.path0).convert("RGB")).unsqueeze(0).to(opt.device)  # stylized image
-    real_img = transform(Image.open(opt.path1).convert("RGB")).unsqueeze(0).to(opt.device)  # content/style image
-
-    # 4. Feature extraction
-    with torch.no_grad():
-        feat_r = feature_extractor(real_img)
-        feat_g = feature_extractor(fake_img)
-
-    # 5. Statistics calculation
-    mu_r, cov_r = compute_stats(feat_r)
-    mu_g, cov_g = compute_stats(feat_g)
-
-    # 6. Calculate distance
-    sifid_value = frechet_distance_gpu(mu_r, cov_r, mu_g, cov_g)
+    sifid_value = calculate_sifid_given_paths(opt.path0, opt.path1)
 
     if not no_print:
-        print("SIFID: %f" % sifid_value.item())
+        print("SIFID: %f" % sifid_value)
     else:
-        return sifid_value.item()
+        return sifid_value
+
+
+def debug_sifid(opt, no_print=False):
+    """
+    Debug version testing different feature dimensions
+    """
+    print(f"Comparing: {opt.path0} vs {opt.path1}")
+
+    # 測試不同維度的特徵
+    for dims in [64, 192, 768, 2048]:
+        print(f"\n=== Testing with {dims} dimensions ===")
+
+        block_idx = InceptionV3.BLOCK_INDEX_BY_DIM[dims]
+        model = InceptionV3([block_idx])
+        if opt.device == "cuda":
+            model.cuda()
+
+        # 計算統計
+        m1, s1 = calculate_activation_statistics([opt.path0], model, 1, dims, opt.device == "cuda")
+        m2, s2 = calculate_activation_statistics([opt.path1], model, 1, dims, opt.device == "cuda")
+
+        # 計算差異
+        diff = m1 - m2
+        print(f"Mean difference norm: {np.linalg.norm(diff):.6f}")
+        print(f"Covariance trace 1: {np.trace(s1):.6f}")
+        print(f"Covariance trace 2: {np.trace(s2):.6f}")
+
+        # 計算 SIFID
+        sifid_value = calculate_frechet_distance(m1, s1, m2, s2)
+        print(f"SIFID with {dims}D: {sifid_value:.6f}")
+
+    return sifid_value
 
 
 if __name__ == "__main__":
@@ -341,7 +310,7 @@ if __name__ == "__main__":
         usage="eval.py [-h] [-m MODE] [-p0 PATH0] [-p1 PATH1] [-d DEVICE]",
         formatter_class=lambda prog: argparse.HelpFormatter(prog, max_help_position=35, width=120),
     )
-    parser.add_argument("-m", "--mode", type=str, default="lpips", help="mode of the evaluation, default is lpips")
+    parser.add_argument("-m", "--mode", type=str, default="sifid", help="mode of the evaluation, default is lpips")
     parser.add_argument("-p0", "--path0", type=str, default="./results/stylized.png", help="path to the stylized image")
     parser.add_argument("-p1", "--path1", type=str, default="./results/style.png", help="path to the content/style image")
     parser.add_argument("-d", "--device", type=str, default="cuda", help="device to use, default is cuda")
@@ -363,3 +332,5 @@ if __name__ == "__main__":
         average_entropy(opt)
     elif opt.mode == "sifid":
         sifid(opt)
+    elif opt.mode == "debug_sifid":
+        debug_sifid(opt)
