@@ -310,7 +310,7 @@ if __name__ == "__main__":
         usage="eval.py [-h] [-m MODE] [-p0 PATH0] [-p1 PATH1] [-d DEVICE]",
         formatter_class=lambda prog: argparse.HelpFormatter(prog, max_help_position=35, width=120),
     )
-    parser.add_argument("-m", "--mode", type=str, default="sifid", help="mode of the evaluation, default is lpips")
+    parser.add_argument("-m", "--mode", type=str, default="lpips", help="mode of the evaluation, default is lpips")
     parser.add_argument("-p0", "--path0", type=str, default="./results/stylized.png", help="path to the stylized image")
     parser.add_argument("-p1", "--path1", type=str, default="./results/style.png", help="path to the content/style image")
     parser.add_argument("-d", "--device", type=str, default="cuda", help="device to use, default is cuda")
