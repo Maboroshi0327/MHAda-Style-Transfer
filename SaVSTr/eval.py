@@ -114,6 +114,9 @@ def nth_order_moment(opt, no_print=False):
 
     hist = compute_histogram(img)
     hist_p = hist / np.sum(hist)
+
+    # Normalize to [0, 1]
+    hist = hist / 255.0
     hist_mean = np.mean(hist)
 
     nth_moment = 0.0
