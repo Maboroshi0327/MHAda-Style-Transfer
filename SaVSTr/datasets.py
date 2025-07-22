@@ -70,8 +70,11 @@ class ImageNet1k(Dataset):
 
 
 class Sintel(Dataset):
-    def __init__(self, image_size: tuple = (256, 512), path="../datasets/MPI-Sintel-complete", device: str = "cuda"):
-        path = os.path.join(path, "training/final")
+    def __init__(self, image_size: tuple = (256, 512), path="../datasets/MPI-Sintel-complete", scene="all", device: str = "cuda"):
+        if scene == "all":
+            path = os.path.join(path, "training/final")
+        else:
+            path = os.path.join(path, "training/final", scene)
         assert os.path.exists(path), f"Path {path} does not exist."
 
         self.path = path
@@ -80,8 +83,13 @@ class Sintel(Dataset):
         self.resolution = (image_size[1], image_size[0])
 
         self.frame = list()
-        for folder in list_folders(path):
-            files = list_files(folder)
+        if scene == "all":
+            for folder in list_folders(path):
+                files = list_files(folder)
+                for i in range(len(files) - 1):
+                    self.frame.append(files[i : i + 2])
+        else:
+            files = list_files(path)
             for i in range(len(files) - 1):
                 self.frame.append(files[i : i + 2])
 
