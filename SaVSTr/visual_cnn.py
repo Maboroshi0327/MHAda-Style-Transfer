@@ -56,7 +56,7 @@ deprocess = transforms.Compose(
     ]
 )
 
-img = Image.open("./contents/Tubingen.jpg").convert("RGB")
+img = Image.open("./styles/Woman-with-Hat.jpg").convert("RGB")
 orig = preprocess(img).unsqueeze(0).to(device)
 
 # Extract target features from all five layers of the original image

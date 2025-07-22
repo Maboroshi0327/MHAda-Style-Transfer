@@ -18,7 +18,7 @@ NUM_HEADS = 8
 HIDDEN_DIM = 512
 ACTIAVTION = "softmax"
 
-CONTENT_PATH = "./contents/Tubingen.jpg"
+IMAGE_PATH = "./styles/Woman-with-Hat.jpg"
 
 
 def min_max_normalize(tensor):
@@ -36,8 +36,10 @@ def min_max_normalize_rgb(tensor):
     return tensor
 
 
-# ---- 1. Style transfer model ----
+# ---- 0. Device configuration ----
 device = "cuda" if torch.cuda.is_available() else "cpu"
+
+# ---- 1. Style transfer model ----
 vit_c = VisionTransformer(num_layers=NUM_LAYERS, num_heads=NUM_HEADS, hidden_dim=HIDDEN_DIM, pos_embedding=True).to(device)
 vit_c.load_state_dict(torch.load(VITC_PATH, map_location=device, weights_only=True), strict=True)
 vit_c.requires_grad_(False)
@@ -45,7 +47,7 @@ vit_c.eval()
 
 
 # ---- 2. Preparation ----
-c = Image.open(CONTENT_PATH).convert("RGB").resize((IMAGE_SIZE[1], IMAGE_SIZE[0]), Image.BILINEAR)
+c = Image.open(IMAGE_PATH).convert("RGB").resize((IMAGE_SIZE[1], IMAGE_SIZE[0]), Image.BILINEAR)
 c = toTensor255(c).unsqueeze(0).to(device)
 # Extract target features from content and style images
 with torch.no_grad():
@@ -84,8 +86,8 @@ for i in range(NUM_LAYERS):
 
 
 # ----5. For MHAda ----
-CONTENT_PATH = "./contents/Chair.jpg"
-c = Image.open(CONTENT_PATH).convert("RGB").resize((IMAGE_SIZE[1], IMAGE_SIZE[0]), Image.BILINEAR)
+IMAGE_PATH = "./contents/Chair.jpg"
+c = Image.open(IMAGE_PATH).convert("RGB").resize((IMAGE_SIZE[1], IMAGE_SIZE[0]), Image.BILINEAR)
 c = toTensor255(c).unsqueeze(0).to(device)
 
 with torch.no_grad():
@@ -95,7 +97,7 @@ with torch.no_grad():
 recon = torch.randn_like(c, requires_grad=True, device=device)
 optimizer = optim.Adam([recon], lr=5e-1)
 
-num_iters = 2000
+num_iters = 1500
 for iter in range(1, num_iters + 1):
     optimizer.zero_grad()
 
@@ -103,7 +105,8 @@ for iter in range(1, num_iters + 1):
     fc = vit_c(recon)
 
     # Loss calculation
-    loss = F.mse_loss(fc[0], target[0])
+    layers = range(3)
+    loss = sum(F.mse_loss(fc[l], target[l]) for l in layers)
     loss.backward()
     optimizer.step()
 
