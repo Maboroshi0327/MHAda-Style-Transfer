@@ -1,19 +1,17 @@
 import torch
 
+import os
 import cv2
 from PIL import Image
 import imageio
 import numpy as np
 
-from utilities import toTensor255, cv2_to_tensor
+from utilities import toTensor255, cv2_to_tensor, mkdir
 from network import VisionTransformer, AdaAttnTransformerMultiHead
 
 
-# MODEL_EPOCH = 20
-# BATCH_SIZE = 8
-# ADA_PATH = f"./models/AdaFormer_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
-# VITC_PATH = f"./models/ViT_C_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
-# VITS_PATH = f"./models/ViT_S_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
+# MODE = "Original"
+MODE = "Stylized"
 
 MODEL_EPOCH = 30
 BATCH_SIZE = 2
@@ -21,28 +19,17 @@ ADA_PATH = f"./models/AdaFormer_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
 VITC_PATH = f"./models/ViT_C_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
 VITS_PATH = f"./models/ViT_S_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
 
-# ADA_PATH = "./models/AdaFormer.pth"
-# VITC_PATH = "./models/ViT_C.pth"
-# VITS_PATH = "./models/ViT_S.pth"
-
-# VIDEO_PATH = "../datasets/Videvo/19.mp4"
-# VIDEO_PATH = "../datasets/Videvo/31.mp4"
-# VIDEO_PATH = "../datasets/Videvo/38.mp4"
-# VIDEO_PATH = "../datasets/Videvo/54.mp4"
-VIDEO_PATH = "../datasets/Videvo/67.mp4"
-# VIDEO_PATH = "../datasets/Videvo/70.mp4"
-
+# VIDEO_PATH = "../datasets/Videvo/67.mp4"
 # STYLE_PATH = "./styles/Autoportrait.jpg"
-# STYLE_PATH = "./styles/Brushstrokes.jpg"
-# STYLE_PATH = "./styles/Composition.jpg"
-# STYLE_PATH = "./styles/Mosaic.jpg"
-# STYLE_PATH = "./styles/Sketch.jpg"
-# STYLE_PATH = "./styles/Tableau.jpg"
+
+VIDEO_PATH = "../datasets/Videvo/19.mp4"
+STYLE_PATH = "./styles/Sketch.jpg"
+
+# VIDEO_PATH = "../datasets/Videvo/98.mp4"
 # STYLE_PATH = "./styles/The-Scream.jpg"
-# STYLE_PATH = "./styles/Udnie.jpg"
-# STYLE_PATH = "./styles/Tableau.jpg"
-# STYLE_PATH = "./styles/Untitled.jpg"
-STYLE_PATH = "./styles/DominancePortfolioBlue.jpg"
+
+# VIDEO_PATH = "../datasets/Videvo/38.mp4"
+# STYLE_PATH = "./styles/Untitled-1964.jpg"
 
 IMAGE_SIZE1 = (256, 256)
 IMAGE_SIZE2 = (256, 512)
@@ -103,7 +90,10 @@ if __name__ == "__main__":
             # Forward pass
             fc = vit_c(c)
             _, cs = adaFormer(fc, fs)
-            cs = cs.clamp(0, 255)
+            if MODE == "Stylized":
+                cs = cs.clamp(0, 255)
+            else:
+                cs = c.clamp(0, 255)
 
             # Compare with previous output
             # if prev_cs is not None:
@@ -127,5 +117,13 @@ if __name__ == "__main__":
             cv2.destroyAllWindows()
             break
 
-    # Save the output frames as a GIF
-    # imageio.mimsave("output.mp4", frames, fps=fps)
+    # Create output directory if it doesn't exist
+    SAVE_PATH = "./results/Video"
+    mkdir(SAVE_PATH, delete_existing_files=True)
+
+    # Save the frames as images
+    for i in range(len(frames)):
+        imageio.imwrite(os.path.join(SAVE_PATH, f"{MODE}_{i}.jpg"), frames[i])
+
+    # Save the frames as a video
+    imageio.mimsave(os.path.join(SAVE_PATH, f"{MODE}.mp4"), frames, fps=fps)

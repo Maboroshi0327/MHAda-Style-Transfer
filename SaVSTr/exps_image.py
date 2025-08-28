@@ -92,12 +92,13 @@ if __name__ == "__main__":
         lpips_content = lpips_loss(opt, no_print=True)
         ssim_content = ssim_loss(opt, no_print=True)
         sifid_content = sifid(opt, no_print=True)
+        kl_c = kl_loss(opt, no_print=True)
 
         opt.path1 = style_save_path
         lpips_style = lpips_loss(opt, no_print=True)
         ssim_style = ssim_loss(opt, no_print=True)
         sifid_style = sifid(opt, no_print=True)
-        kl = kl_loss(opt, no_print=True)
+        kl_s = kl_loss(opt, no_print=True)
         gram = gram_loss(opt, no_print=True)
         moment = nth_order_moment(opt, no_print=True)
         uni = uniformity(opt, no_print=True)
@@ -111,10 +112,11 @@ if __name__ == "__main__":
                 "lpips_content": lpips_content,
                 "ssim_content": ssim_content,
                 "sifid_content": sifid_content,
+                "kl_c": kl_c,
                 "lpips_style": lpips_style,
                 "ssim_style": ssim_style,
                 "sifid_style": sifid_style,
-                "kl": kl,
+                "kl_s": kl_s,
                 "gram": gram,
                 "moment": moment,
                 "uniformity": uni,
@@ -131,14 +133,15 @@ if __name__ == "__main__":
             "lpips_content": avg_result[0],
             "ssim_content": avg_result[1],
             "sifid_content": avg_result[2],
-            "lpips_style": avg_result[3],
-            "ssim_style": avg_result[4],
-            "sifid_style": avg_result[5],
-            "kl": avg_result[6],
-            "gram": avg_result[7],
-            "moment": avg_result[8],
-            "uniformity": avg_result[9],
-            "entropy": avg_result[10],
+            "kl_c": avg_result[3],
+            "lpips_style": avg_result[4],
+            "ssim_style": avg_result[5],
+            "sifid_style": avg_result[6],
+            "kl_s": avg_result[7],
+            "gram": avg_result[8],
+            "moment": avg_result[9],
+            "uniformity": avg_result[10],
+            "entropy": avg_result[11],
         }
     )
 
@@ -150,10 +153,11 @@ if __name__ == "__main__":
             "lpips_content",
             "ssim_content",
             "sifid_content",
+            "kl_c",
             "lpips_style",
             "ssim_style",
             "sifid_style",
-            "kl",
+            "kl_s",
             "gram",
             "moment",
             "uniformity",

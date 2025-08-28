@@ -15,13 +15,13 @@ ADA_PATH = f"./models/AdaFormer_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
 VITC_PATH = f"./models/ViT_C_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
 VITS_PATH = f"./models/ViT_S_epoch_{MODEL_EPOCH}_batchSize_{BATCH_SIZE}.pth"
 
-IMAGE_SIZE = (256, 256)
+IMAGE_SIZE = (512, 512)
 NUM_LAYERS = 3
 NUM_HEADS = 8
 HIDDEN_DIM = 512
 ACTIAVTION = "softmax"
 
-CONTENT_PATH = "./contents/Chair.jpg"
+CONTENT_PATH = "./contents/Chicago.jpg"
 STYLE_PATH = "./styles/Sketch.jpg"
 
 
