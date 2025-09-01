@@ -19,6 +19,7 @@
 
 - 資料集目錄：`/root/datasets`（對應到你的本機資料集路徑）
 
+---
 
 ## 先決條件
 
@@ -51,6 +52,7 @@
   - 專案目錄（MHAdaSTr 目錄）
   - 資料集目錄（實際資料集放置處）
 
+---
 
 ## 建置映像
 
@@ -79,6 +81,7 @@ docker pull maboroshi327/vistytr:latest
 
 - 仍需安裝 NVIDIA Container Toolkit 才能使用 `--gpus all`。
 
+---
 
 ## 建立與掛載容器
 
@@ -114,6 +117,7 @@ docker create --name $CONTAINER_NAME --ipc host -it --gpus all \
 
 - 工作目錄預設為 `/root/project`（已在 [Dockerfile](Dockerfile) 中設定）。
 
+---
 
 ## 啟動與進入容器（VS Code）
 
@@ -131,6 +135,7 @@ docker create --name $CONTAINER_NAME --ipc host -it --gpus all \
 
 - 進入容器後，開啟 `/root/project` 目錄，在左側的檔案總管中能看到 Python 程式檔案
 
+---
 
 ## 驗證環境與 GPU
 
@@ -163,6 +168,7 @@ docker create --name $CONTAINER_NAME --ipc host -it --gpus all \
 
   - [infer_video.py](MHAdaSTr/infer_video.py)：對影片進行風格轉換推論，輸入內容視訊與風格圖片，輸出結果視訊。
 
+---
 
 ## 疑難排解
 
@@ -180,6 +186,7 @@ docker create --name $CONTAINER_NAME --ipc host -it --gpus all \
 
 - 路徑中避免包含空白或特殊字元，或以引號包住路徑
 
+---
 
 ## 參考檔案
 - 建置步驟與內容：[Dockerfile](Dockerfile)
