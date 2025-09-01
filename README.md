@@ -99,7 +99,7 @@ bash ./create.sh
 # Container name: mhada
 # Project mount path: /path/to/your/MHAdaSTr
 # Datasets mount path: /path/to/your/datasets
-# Image tag: mhada:latest
+# Image tag: mhada:latest  # 若是從 Docker Hub 拉取映像，請改成 maboroshi327/vistytr:latest
 ```
 
 ### 方式二：直接使用 docker 指令
@@ -107,7 +107,7 @@ bash ./create.sh
 CONTAINER_NAME=mhada
 PROJECT_PATH=/path/to/your/MHAdaSTr
 DATASETS_PATH=/path/to/your/datasets
-TAG=maboroshi327/vistytr:latest  # 若你是本機建置，改成 mhada:latest
+TAG=mhada:latest  # 若是從 Docker Hub 拉取映像，請改成 maboroshi327/vistytr:latest
 
 docker create --name $CONTAINER_NAME --ipc host -it --gpus all \
   -v $PROJECT_PATH:/root/project \
