@@ -29,7 +29,7 @@
       ```
       sudo apt install docker.io
       ```
-    - 安裝最新的 Docker 版本（較複雜，可能不支援最新的 Ubuntu 版本）：https://docs.docker.com/engine/install/
+    - 安裝最新的 Docker 版本（較複雜，可能不支援最新的 Ubuntu）：https://docs.docker.com/engine/install/
 
   - 以非 root 使用者身分管理 Docker：
     - 開啟 https://docs.docker.com/engine/install/linux-postinstall/
