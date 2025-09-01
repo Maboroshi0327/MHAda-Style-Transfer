@@ -29,10 +29,12 @@
       ```
       sudo apt install docker.io
       ```
+
     - 安裝最新的 Docker 版本（較複雜，可能不支援最新的 Ubuntu）：https://docs.docker.com/engine/install/
 
   - 以非 root 使用者身分管理 Docker：
     - 開啟 https://docs.docker.com/engine/install/linux-postinstall/
+
     - 按照 **Manage Docker as a non-root user** 的說明執行命令
 
   - GPU 參數說明（--gpus）：https://docs.docker.com/config/containers/resource_constraints/#gpu
@@ -40,7 +42,9 @@
 - 需要 NVIDIA 顯示卡與驅動，以及 NVIDIA Container Toolkit 以啟用 `--gpus all`
   - 安裝 NVIDIA Container Toolkit（以 Ubuntu 為例）：
     - 開啟 https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
+
     - 按照 **With apt: Ubuntu, Debian** 的說明執行命令
+
     - 按照 **Configuring Docker** 的說明執行命令，無需執行 **Rootless mode** 後的內容
 
   - 在容器中驗證 GPU 可用性：
@@ -50,6 +54,7 @@
 
 - 本機準備好兩個目錄（將會掛載進容器）
   - 專案目錄（MHAdaSTr 目錄）
+
   - 資料集目錄（實際資料集放置處）
 
 ---
