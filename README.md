@@ -19,13 +19,26 @@
 ## 先決條件
 
 - 已安裝 Docker（並可使用 `docker` 指令）
-  - 安裝指引（Docker Engine）：https://docs.docker.com/engine/install/
-  - Linux 後續設定（無 sudo 執行 docker 等）：https://docs.docker.com/engine/install/linux-postinstall/
+  - 安裝 Docker Engine（以下兩種方法二選一）：
+    - 安裝 Linux 發行版提供的 Docker 版本（以 Ubuntu 為例）：
+      ```
+      sudo apt install docker.io
+      ```
+    - 安裝最新的 Docker 版本（較複雜，可能不支援最新的 Ubuntu 版本）：https://docs.docker.com/engine/install/
+  - 以非 root 使用者身分管理 Docker：
+    - 開啟 https://docs.docker.com/engine/install/linux-postinstall/
+    - 按照 **Manage Docker as a non-root user** 的說明執行命令
   - GPU 參數說明（--gpus）：https://docs.docker.com/config/containers/resource_constraints/#gpu
 
 - 需要 NVIDIA 顯示卡與驅動，以及 NVIDIA Container Toolkit 以啟用 `--gpus all`
-  - 安裝 NVIDIA Container Toolkit：https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
-  - 在容器中驗證 GPU 可用性：https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/troubleshooting.html#testing-the-nvidia-container-toolkit
+  - 安裝 NVIDIA Container Toolkit（以 Ubuntu 為例）：
+    - 開啟 https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
+    - 按照 **With apt: Ubuntu, Debian** 的說明執行命令
+    - 按照 **Configuring Docker** 的說明執行命令，無需執行 **Rootless mode** 後的內容
+  - 在容器中驗證 GPU 可用性：
+    ```
+    docker run -it --rm --gpus all ubuntu nvidia-smi
+    ```
 
 - 本機準備好兩個目錄（將會掛載進容器）
   - 專案目錄（MHAdaSTr 目錄）
@@ -104,7 +117,7 @@ docker create --name $CONTAINER_NAME --ipc host -it --gpus all \
 - 點選遠端總管圖示
 - 在選單中選擇「開發人員容器」
 - 在列出的容器中，選擇要進入的容器，點選「在目前的視窗中附加」或「在新視窗中連結」
-- 進入容器後，VS Code 會開啟 `/root/project` 目錄，在左側的檔案總管中能看到 Python 程式檔案
+- 進入容器後，開啟 `/root/project` 目錄，在左側的檔案總管中能看到 Python 程式檔案
 
 ---
 
