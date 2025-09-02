@@ -26,7 +26,7 @@
 ### 已安裝 Docker（並可使用 `docker` 指令）
 - 安裝 Docker Engine（以下兩種方法二選一）：
   - 安裝 Linux 發行版提供的 Docker 版本（以 Ubuntu 為例）：
-    ```
+    ```bash
     sudo apt install docker.io
     ```
 
@@ -48,7 +48,7 @@
   - 按照 **Configuring Docker** 的說明執行命令，無需執行 **Rootless mode** 後的內容
 
 - 在容器中驗證 GPU 可用性：
-  ```
+  ```bash
   docker run -it --rm --gpus all ubuntu nvidia-smi
   ```
 
@@ -65,19 +65,19 @@
 
 ### 方式一：使用腳本建置
 執行根目錄的 [build.sh](build.sh)，依提示輸入映像 Tag：
-```
+```bash
 bash ./build.sh
 # Tag name: mhada:latest
 ```
 
 ### 方式二：直接使用 docker 指令
-```
+```bash
 docker build -t mhada:latest .
 ```
 
 ### 方式三：從 Docker Hub 取得預建映像
 若不想本機建置，可直接拉取預建映像：
-```
+```bash
 docker pull maboroshi327/vistytr:latest
 ```
 
@@ -94,7 +94,7 @@ docker pull maboroshi327/vistytr:latest
 
 ### 方式一：使用腳本建立
 執行 [create.sh](create.sh)，依提示輸入：
-```
+```bash
 bash ./create.sh
 # Container name: mhada
 # Project mount path: /path/to/your/MHAdaSTr
@@ -103,7 +103,7 @@ bash ./create.sh
 ```
 
 ### 方式二：直接使用 docker 指令
-```
+```bash
 CONTAINER_NAME=mhada
 PROJECT_PATH=/path/to/your/MHAdaSTr
 DATASETS_PATH=/path/to/your/datasets
@@ -147,12 +147,12 @@ docker create --name $CONTAINER_NAME --ipc host -it --gpus all \
 ### 進入容器後可執行：
 
 - 檢查 GPU：
-  ```
+  ```bash
   nvidia-smi
   ```
 
 - 檢查 PyTorch CUDA：
-  ```
+  ```bash
   /root/miniconda3/bin/python - << 'PY'
   import torch
   print("CUDA available:", torch.cuda.is_available())
