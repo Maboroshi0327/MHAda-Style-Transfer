@@ -177,6 +177,18 @@ docker create --name $CONTAINER_NAME --ipc host -it --gpus all \
 
 ## 疑難排解
 
+### Wayland 顯示支援（如需在容器內使用 GUI，例如影片風格轉換推理）
+- 若你的 Linux 桌面環境採用 Wayland，需在本機終端機執行下列指令，再進入容器，讓 docker 能顯示影片風格轉換的推理過程：
+  ```bash
+  xhost +local:docker
+  ```
+
+- 進入容器後，直接執行：
+  ```bash
+  xeyes
+  ```
+  若能看到 xeyes 視窗，代表 X11 GUI 功能正常。
+
 ### 無法使用 GPU：
 - 確認主機已安裝對應 NVIDIA 驅動
 
